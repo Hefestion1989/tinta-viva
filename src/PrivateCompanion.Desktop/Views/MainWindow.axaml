@@ -47,7 +47,7 @@
                     </StackPanel>
                 </Border>
 
-                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto">
+                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto,Auto">
                     <TextBlock Text="PERSONAJES" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" Margin="8,0,0,8" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                              Background="Transparent" BorderThickness="0">
@@ -65,7 +65,29 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <Button Grid.Row="2" Classes="secondary" Content="+ Nuevo personaje" Command="{Binding NewCharacterCommand}" Margin="0,10,0,0" />
+                    <Border Grid.Row="2" Background="#171A22" BorderBrush="#2D3240" BorderThickness="1" CornerRadius="10" Padding="9" Margin="0,9,0,0"
+                            IsVisible="{Binding HasSelectedCharacter}">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="34,*" ColumnSpacing="8">
+                                <Border Width="32" Height="32" CornerRadius="16" Background="#29233F" ClipToBounds="True">
+                                    <Grid>
+                                        <TextBlock Text="♥" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9B8BFF"
+                                                   IsVisible="{Binding !HasPortrait}" />
+                                        <Image Source="{Binding CharacterPortraitPreview}" Stretch="UniformToFill" IsVisible="{Binding HasPortrait}" />
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="PERSONAJE ACTIVO" FontSize="9" Foreground="#747B8D" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding SelectedCharacterSubtitle}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                <Button Classes="secondary" Content="Editar" Command="{Binding NavigateCommand}" CommandParameter="Perfil" FontSize="10" Padding="7,5" />
+                                <Button Grid.Column="1" Classes="secondary" Content="＋ Imagen" Click="AddImages_Click" FontSize="10" Padding="7,5" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <Button Grid.Row="3" Classes="secondary" Content="+ Nuevo personaje" Command="{Binding NewCharacterCommand}" Margin="0,9,0,0" />
                 </Grid>
 
                 <Border Grid.Row="4" Background="#171A22" CornerRadius="9" Padding="10" Margin="0,14,0,0">
@@ -162,8 +184,8 @@
             <Grid IsVisible="{Binding IsProfile}" RowDefinitions="Auto,*">
                 <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel><TextBlock Text="Identidad y personalidad" FontSize="22" FontWeight="SemiBold" />
-                            <TextBlock Text="El perfil se versiona: los cambios futuros no borran su historia." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                        <StackPanel><TextBlock Text="Editar personaje" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Cambiá sus datos, historia, forma de hablar y rasgos. Al guardar se crea una nueva revisión sin borrar su recorrido." Foreground="#8F95A5" FontSize="12" TextWrapping="Wrap" /></StackPanel>
                         <Button Grid.Column="1" Classes="primary" Content="Guardar perfil" Command="{Binding SaveCharacterCommand}" />
                     </Grid>
                 </Border>
@@ -317,6 +339,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Classes="secondary" Content="Abrir carpeta" Click="OpenMediaFolder_Click" />
                             <Button Classes="primary" Content="＋ Agregar imágenes" Click="AddImages_Click" IsEnabled="{Binding !IsBusy}" />
+                            <Button Classes="secondary" Content="Usar como retrato" Command="{Binding UseAlbumAsPortraitCommand}" IsEnabled="{Binding HasAlbumItem}" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -326,6 +349,7 @@
                             <TextBlock Text="▣" FontSize="48" Foreground="#7C5CFC" HorizontalAlignment="Center" />
                             <TextBlock Text="Tu galería todavía está vacía" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
                             <TextBlock Text="Podés agregar varias imágenes creadas por vos. Se copian al espacio privado, se vinculan al personaje actual y el original queda intacto." TextWrapping="Wrap" TextAlignment="Center" Foreground="#9DA3B2" />
+                            <Button Classes="primary" Content="＋ Elegir imágenes para este personaje" Click="AddImages_Click" HorizontalAlignment="Center" Margin="0,5,0,0" />
                             <TextBlock Text="El generador no se elimina: ComfyUI se sumará luego con un workflow de identidad para conservar rostro y cuerpo." TextWrapping="Wrap" TextAlignment="Center" Foreground="#D4B46C" FontSize="12" />
                         </StackPanel>
                     </Border>
