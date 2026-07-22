@@ -143,6 +143,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public bool IsUsers => ActiveSection == "Usuarios";
     public bool IsSettings => ActiveSection == "Configuración";
     public bool HasGalleryItems => Gallery.Count > 0;
+    public bool HasSelectedCharacter => SelectedCharacter is not null;
     public bool HasPortrait => CharacterPortraitPreview is not null;
     public bool HasUserPortrait => UserPortraitPreview is not null;
     public bool HasChatBackground => ChatBackgroundPreview is not null;
@@ -175,6 +176,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     partial void OnSelectedCharacterChanged(CharacterListItem? value)
     {
         OnPropertyChanged(nameof(SelectedCharacterSubtitle));
+        OnPropertyChanged(nameof(HasSelectedCharacter));
         if (!_isInitializing && value is not null && SelectedUserPersona is not null) _ = LoadCharacterWorkspaceAsync(value.Id);
     }
 
@@ -518,6 +520,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         {
             var result = await _mediaLibrary.ImportAsync(SelectedCharacter.Id, sourcePaths);
             await LoadGalleryAsync(SelectedCharacter.Id);
+            ActiveSection = "Galería";
             var summary = $"Importadas: {result.Imported}. Duplicadas omitidas: {result.Skipped}.";
             StatusText = result.Errors.Count == 0
                 ? summary

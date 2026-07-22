@@ -14,10 +14,11 @@ No hay una nube propia, cuentas ni telemetría. La aplicación solo acepta conex
 
 ## Estado actual
 
-La versión 0.6.0 incluye:
+La versión 0.6.1 incluye:
 
 - interfaz Avalonia/.NET 10 para Windows;
 - personajes editables y perfiles versionados;
+- acceso directo para editar al personaje activo y agregarle imágenes desde la barra lateral;
 - diez rasgos de personalidad configurables;
 - conversaciones e historial persistente;
 - escenas canónicas y sandbox;
@@ -32,6 +33,7 @@ La versión 0.6.0 incluye:
 - galería por personaje con importación múltiple de PNG, JPEG, WebP, BMP y GIF;
 - copia privada de originales, deduplicación SHA-256 y miniaturas de memoria acotada;
 - retrato por personaje, fondo visual de conversación y álbum lateral navegable;
+- asignación visible de la imagen seleccionada como retrato desde la propia galería;
 - encuadre no destructivo con zoom y foco independientes para retrato y fondo;
 - botón de cierre visible en la esquina superior derecha;
 - diseño más compacto que respeta el área útil de Windows, recorta cada panel y reserva el espacio del botón de cierre;
