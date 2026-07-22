@@ -65,6 +65,9 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial string UserProfession { get; set; } = string.Empty;
     [ObservableProperty] public partial string UserLikes { get; set; } = string.Empty;
     [ObservableProperty] public partial string UserCommunicationStyle { get; set; } = string.Empty;
+    [ObservableProperty] public partial string UserPortraitRelativePath { get; set; } = string.Empty;
+    [ObservableProperty] public partial Bitmap? UserPortraitPreview { get; set; }
+    [ObservableProperty] public partial string IdentityStatusText { get; set; } = "Los cambios quedan en este equipo cuando presionás «Guardar y usar».";
 
     [ObservableProperty] public partial string CharacterName { get; set; } = string.Empty;
     [ObservableProperty] public partial int CharacterAge { get; set; } = 25;
@@ -141,6 +144,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public bool IsSettings => ActiveSection == "Configuración";
     public bool HasGalleryItems => Gallery.Count > 0;
     public bool HasPortrait => CharacterPortraitPreview is not null;
+    public bool HasUserPortrait => UserPortraitPreview is not null;
     public bool HasChatBackground => ChatBackgroundPreview is not null;
     public bool HasAlbumItem => AlbumItem is not null;
     public RelativePoint PortraitTransformOrigin => new(PortraitFocusX, PortraitFocusY, RelativeUnit.Relative);
@@ -199,6 +203,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
 
     partial void OnAlbumItemChanged(GalleryItemViewModel? value) => OnPropertyChanged(nameof(HasAlbumItem));
     partial void OnCharacterPortraitPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasPortrait));
+    partial void OnUserPortraitPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasUserPortrait));
     partial void OnChatBackgroundPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasChatBackground));
     partial void OnPortraitFocusXChanged(double value) => OnPropertyChanged(nameof(PortraitTransformOrigin));
     partial void OnPortraitFocusYChanged(double value) => OnPropertyChanged(nameof(PortraitTransformOrigin));
@@ -256,8 +261,11 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         UserProfession = string.Empty;
         UserLikes = string.Empty;
         UserCommunicationStyle = "Español rioplatense natural, directo y sin exagerar modismos.";
+        UserPortraitRelativePath = string.Empty;
+        SetUserPortraitPreview(null);
         ActiveSection = "Usuarios";
         StatusText = "Creá una identidad. Su memoria y sus vínculos quedarán separados.";
+        IdentityStatusText = "Identidad nueva: completá al menos el nombre y la edad, elegí un retrato si querés y guardá.";
     }
 
     [RelayCommand]
@@ -276,16 +284,49 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
                 Profession = UserProfession.Trim(),
                 Likes = UserLikes.Trim(),
                 CommunicationStyle = UserCommunicationStyle.Trim(),
+                PortraitRelativePath = UserPortraitRelativePath,
                 IsActive = true
             };
             await _repository.SaveUserPersonaAsync(userPersona);
             await _repository.SetActiveUserPersonaAsync(userPersona.Id);
             await LoadUserPersonasAsync(userPersona.Id);
             if (SelectedCharacter is not null) await LoadCharacterWorkspaceAsync(SelectedCharacter.Id);
+            var savedAt = DateTime.Now.ToString("HH:mm");
             StatusText = "Identidad guardada. Sus conversaciones y recuerdos quedan aislados de los demás perfiles.";
+            IdentityStatusText = $"✓ Guardado a las {savedAt}. «{userPersona.Name}» está activa y su retrato quedó asociado solo a esta identidad.";
         }
-        catch (ValidationException ex) { StatusText = ex.Message; }
-        catch (Exception ex) { StatusText = $"No pude guardar la identidad: {ex.Message}"; }
+        catch (ValidationException ex) { StatusText = IdentityStatusText = ex.Message; }
+        catch (Exception ex) { StatusText = IdentityStatusText = $"No pude guardar la identidad: {ex.Message}"; }
+    }
+
+    public async Task ImportUserPortraitAsync(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            UserPortraitRelativePath = await _mediaLibrary.ImportUserPortraitAsync(sourcePath);
+            SetUserPortraitPreview(_mediaLibrary.GetAbsolutePath(UserPortraitRelativePath));
+            StatusText = "Retrato preparado para tu identidad.";
+            IdentityStatusText = "Retrato preparado. Presioná «Guardar y usar» para asociarlo a esta identidad.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = IdentityStatusText = $"No pude preparar el retrato: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearUserPortrait()
+    {
+        UserPortraitRelativePath = string.Empty;
+        SetUserPortraitPreview(null);
+        StatusText = "Retrato quitado del formulario.";
+        IdentityStatusText = "El retrato se quitará de esta identidad cuando presiones «Guardar y usar».";
     }
 
     [RelayCommand]
@@ -581,7 +622,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         UserPersonas.Clear();
         foreach (var user in users)
             UserPersonas.Add(new UserPersonaListItem(user.Id, user.Name, user.Age, user.Pronouns, user.Appearance,
-                user.About, user.Profession, user.Likes, user.CommunicationStyle, user.IsActive));
+                user.About, user.Profession, user.Likes, user.CommunicationStyle, user.PortraitRelativePath, user.IsActive));
         SelectedUserPersona = UserPersonas.FirstOrDefault(x => x.Id == current) ?? UserPersonas.FirstOrDefault();
         if (SelectedUserPersona is not null) LoadUserPersonaFields(SelectedUserPersona);
         _isInitializing = wasInitializing;
@@ -598,6 +639,18 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         UserProfession = user.Profession;
         UserLikes = user.Likes;
         UserCommunicationStyle = user.CommunicationStyle;
+        UserPortraitRelativePath = user.PortraitRelativePath;
+        SetUserPortraitPreview(string.IsNullOrWhiteSpace(user.PortraitRelativePath)
+            ? null
+            : _mediaLibrary.GetAbsolutePath(user.PortraitRelativePath));
+        IdentityStatusText = $"Identidad cargada: «{user.Name}». Los cambios se aplican con «Guardar y usar».";
+    }
+
+    private void SetUserPortraitPreview(string? absolutePath)
+    {
+        var previous = UserPortraitPreview;
+        UserPortraitPreview = DecodeImage(absolutePath, 420);
+        previous?.Dispose();
     }
 
     private async Task ActivateUserPersonaAsync(Guid userPersonaId)
@@ -770,7 +823,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
 public sealed record UniverseListItem(Guid Id, string Name);
 public sealed record CharacterListItem(Guid Id, string Name, int Age);
 public sealed record UserPersonaListItem(Guid Id, string Name, int Age, string Pronouns, string Appearance,
-    string About, string Profession, string Likes, string CommunicationStyle, bool IsActive);
+    string About, string Profession, string Likes, string CommunicationStyle, string PortraitRelativePath, bool IsActive);
 public sealed record ConversationListItem(Guid Id, string Title, SceneMode Mode, DateTimeOffset UpdatedAt, bool IsClosed);
 public sealed record MemoryListItem(Guid Id, MemoryKind Kind, string Title, string Content, double Importance, bool IsPinned, bool IsCanonical);
 public sealed record DiaryListItem(string Title, string Content, DateTimeOffset CreatedAt);

@@ -70,7 +70,12 @@ public interface IMediaLibrary
         IReadOnlyList<string> sourcePaths,
         CancellationToken cancellationToken = default);
 
+    Task<string> ImportUserPortraitAsync(
+        string sourcePath,
+        CancellationToken cancellationToken = default);
+
     string GetAbsolutePath(MediaAsset asset);
+    string GetAbsolutePath(string relativePath);
 }
 
 public interface IPromptComposer

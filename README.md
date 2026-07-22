@@ -14,7 +14,7 @@ No hay una nube propia, cuentas ni telemetría. La aplicación solo acepta conex
 
 ## Estado actual
 
-La versión 0.5.2 incluye:
+La versión 0.6.0 incluye:
 
 - interfaz Avalonia/.NET 10 para Windows;
 - personajes editables y perfiles versionados;
@@ -36,6 +36,8 @@ La versión 0.5.2 incluye:
 - botón de cierre visible en la esquina superior derecha;
 - diseño más compacto que respeta el área útil de Windows, recorta cada panel y reserva el espacio del botón de cierre;
 - múltiples identidades de usuario con conversaciones, recuerdos, diario y relación aislados;
+- retrato privado e independiente para cada identidad de usuario;
+- confirmación visible dentro del formulario al guardar o preparar una imagen;
 - español rioplatense natural como valor predeterminado, sin forzar lunfardo ni muletillas;
 - actualización versionada del esquema con backup automático previo;
 - validación de edad mínima.
@@ -50,7 +52,7 @@ Los datos de uso se almacenan en:
 
 Las imágenes importadas se copian en `media\originals`; nunca se mueven ni se modifican los archivos elegidos por el usuario.
 
-Antes de actualizar una base anterior se crea una copia consistente en `backups`. La migración v0.5 vincula los personajes existentes a un universo principal sin borrar conversaciones ni recuerdos.
+Antes de actualizar una base anterior se crea una copia consistente en `backups`. La migración v0.6 agrega el retrato de identidad y conserva universos, personajes, conversaciones, recuerdos e imágenes existentes.
 
 La aplicación solo acepta endpoints HTTP en `localhost` o `127.0.0.1`. No contiene telemetría, cuentas ni sincronización.
 

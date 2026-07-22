@@ -33,8 +33,16 @@
                 <Border Grid.Row="2" Background="#171A22" CornerRadius="10" Padding="10" Margin="0,0,0,12">
                     <StackPanel Spacing="7">
                         <TextBlock Text="IDENTIDAD ACTIVA" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
-                        <ComboBox ItemsSource="{Binding UserPersonas}" SelectedItem="{Binding SelectedUserPersona}"
-                                  DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding !IsBusy}" />
+                        <Grid ColumnDefinitions="38,*" ColumnSpacing="8">
+                            <Border Width="36" Height="36" CornerRadius="18" Background="#29233F" ClipToBounds="True">
+                                <Grid>
+                                    <TextBlock Text="◎" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9B8BFF" FontSize="18" />
+                                    <Image Source="{Binding UserPortraitPreview}" Stretch="UniformToFill" IsVisible="{Binding HasUserPortrait}" />
+                                </Grid>
+                            </Border>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding UserPersonas}" SelectedItem="{Binding SelectedUserPersona}"
+                                      DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding !IsBusy}" VerticalAlignment="Center" />
+                        </Grid>
                         <Button Classes="secondary" Content="Administrar identidades" Command="{Binding NavigateCommand}" CommandParameter="Usuarios" FontSize="11" />
                     </StackPanel>
                 </Border>
@@ -219,18 +227,37 @@
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="28,24" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="16">
+                    <StackPanel MaxWidth="880" HorizontalAlignment="Left" Spacing="16">
                         <Border Background="#171A22" CornerRadius="10" Padding="13">
                             <TextBlock Text="Cambiar de identidad no mezcla conversaciones, memoria ni evolución de la relación." TextWrapping="Wrap" Foreground="#B8BDCA" />
                         </Border>
-                        <Grid ColumnDefinitions="2*,*,2*" ColumnSpacing="12">
-                            <StackPanel><TextBlock Text="Nombre" /><TextBox Text="{Binding UserName}" /></StackPanel>
-                            <StackPanel Grid.Column="1"><TextBlock Text="Edad" /><NumericUpDown Value="{Binding UserAge}" Minimum="18" Maximum="120" /></StackPanel>
-                            <StackPanel Grid.Column="2"><TextBlock Text="Pronombres (opcional)" /><TextBox Text="{Binding UserPronouns}" /></StackPanel>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                            <StackPanel><TextBlock Text="Apariencia" /><TextBox Text="{Binding UserAppearance}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" /></StackPanel>
-                            <StackPanel Grid.Column="1"><TextBlock Text="Quién soy / historia" /><TextBox Text="{Binding UserAbout}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" /></StackPanel>
+                        <Border Background="#17251F" BorderBrush="#2F7D57" BorderThickness="1" CornerRadius="10" Padding="13">
+                            <TextBlock Text="{Binding IdentityStatusText}" TextWrapping="Wrap" Foreground="#A7E7C2" FontWeight="SemiBold" />
+                        </Border>
+                        <Grid ColumnDefinitions="190,*" ColumnSpacing="20">
+                            <StackPanel Spacing="9">
+                                <TextBlock Text="MI RETRATO" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                <Border Width="180" Height="180" CornerRadius="16" Background="#171A22" ClipToBounds="True" HorizontalAlignment="Left">
+                                    <Grid>
+                                        <TextBlock Text="◎" FontSize="58" Foreground="#4A3B85" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        <Image Source="{Binding UserPortraitPreview}" Stretch="UniformToFill" IsVisible="{Binding HasUserPortrait}" />
+                                    </Grid>
+                                </Border>
+                                <Button Classes="primary" Content="Elegir retrato" Click="AddUserPortrait_Click" IsEnabled="{Binding !IsBusy}" />
+                                <Button Classes="secondary" Content="Quitar retrato" Command="{Binding ClearUserPortraitCommand}" IsVisible="{Binding HasUserPortrait}" />
+                                <TextBlock Text="Se copia al almacenamiento privado local. El archivo original no se modifica." TextWrapping="Wrap" FontSize="10" Foreground="#8F95A5" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="14">
+                                <Grid ColumnDefinitions="2*,*,2*" ColumnSpacing="12">
+                                    <StackPanel><TextBlock Text="Nombre" /><TextBox Text="{Binding UserName}" /></StackPanel>
+                                    <StackPanel Grid.Column="1"><TextBlock Text="Edad" /><NumericUpDown Value="{Binding UserAge}" Minimum="18" Maximum="120" /></StackPanel>
+                                    <StackPanel Grid.Column="2"><TextBlock Text="Pronombres (opcional)" /><TextBox Text="{Binding UserPronouns}" /></StackPanel>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                                    <StackPanel><TextBlock Text="Apariencia" /><TextBox Text="{Binding UserAppearance}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" /></StackPanel>
+                                    <StackPanel Grid.Column="1"><TextBlock Text="Quién soy / historia" /><TextBox Text="{Binding UserAbout}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" /></StackPanel>
+                                </Grid>
+                            </StackPanel>
                         </Grid>
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
                             <StackPanel><TextBlock Text="Profesión" /><TextBox Text="{Binding UserProfession}" /></StackPanel>

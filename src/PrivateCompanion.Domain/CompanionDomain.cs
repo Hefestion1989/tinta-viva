@@ -85,6 +85,7 @@ public sealed class UserPersona
     [MaxLength(500)] public string Profession { get; set; } = string.Empty;
     [MaxLength(2000)] public string Likes { get; set; } = string.Empty;
     [MaxLength(1500)] public string CommunicationStyle { get; set; } = string.Empty;
+    [MaxLength(1000)] public string PortraitRelativePath { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
