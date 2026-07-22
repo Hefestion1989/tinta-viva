@@ -10,6 +10,6 @@ tmp/
 *.db
 *.db-*
 backups/
-media/
+/media/
 logs/
 .env*
