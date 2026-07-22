@@ -1,8 +1,16 @@
 # Tinta Viva
 
-Aplicación de escritorio privada y de código abierto para Windows, orientada a universos narrativos, personajes persistentes, conversación local y memoria con continuidad. El nombre técnico interno `PrivateCompanion` se conserva para mantener la compatibilidad con las rutas y bases existentes.
+Aplicación de escritorio local y de código abierto para narradores, escritores y personas que quieran experimentar libremente con universos, personajes persistentes, roleplay y memoria con continuidad. El nombre técnico interno `PrivateCompanion` se conserva para mantener la compatibilidad con las rutas y bases existentes.
+
+> Tus personajes, historias y recuerdos permanecen en tu computadora.
 
 Tinta Viva separa la experiencia narrativa del modelo: personajes, escenas, recuerdos, relaciones y conversaciones pertenecen a la aplicación, mientras que la generación se delega a un servidor local compatible con la API de OpenAI.
+
+## Escritura libre y privada
+
+Tinta Viva está pensada primero como una herramienta narrativa. Admite aventura, drama, romance y también sexualidad o contenido erótico explícito entre personajes adultos cuando formen parte del relato. La aplicación no agrega filtros de contenido ni advertencias repetitivas: la respuesta concreta depende del modelo local elegido y de su configuración.
+
+No hay una nube propia, cuentas ni telemetría. La aplicación solo acepta conexiones con `localhost` o `127.0.0.1`, por lo que textos, fichas, recuerdos e imágenes permanecen bajo el control del usuario. Para una superficie especializada en relatos y roleplay adulto existe el proyecto independiente [Tinta Privada](https://github.com/Hefestion1989/tinta-privada), con almacenamiento separado.
 
 ## Estado actual
 
@@ -81,10 +89,6 @@ Compilar y probar desde PowerShell, dentro del repositorio:
 dotnet test .\PrivateCompanion.slnx
 dotnet publish .\src\PrivateCompanion.Desktop\PrivateCompanion.Desktop.csproj -c Release -r win-x64 --self-contained true
 ```
-
-## Alcance narrativo
-
-Tinta Viva está orientada a universos, personajes, vínculos, psicología y continuidad general. También admite romance, sexualidad y contenido erótico explícito adulto cuando resulte coherente con los personajes y la escena, sin advertencias repetitivas ni moralizaciones. Tinta Privada continúa siendo la superficie especializada para escribir relatos y roleplay erótico. La edad mínima continúa validándose al guardar los perfiles.
 
 ## Licencia
 
