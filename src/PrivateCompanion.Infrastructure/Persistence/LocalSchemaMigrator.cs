@@ -6,7 +6,7 @@ namespace PrivateCompanion.Infrastructure.Persistence;
 
 internal static class LocalSchemaMigrator
 {
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 6;
 
     public static async Task<bool> PrepareAsync(CompanionDbContext db, CancellationToken cancellationToken)
     {
@@ -87,6 +87,7 @@ internal static class LocalSchemaMigrator
             await AddColumnIfMissingAsync(connection, "CharacterMediaPresentations", "BackgroundZoom", "REAL NOT NULL DEFAULT 1.0", cancellationToken);
             await AddColumnIfMissingAsync(connection, "CharacterMediaPresentations", "BackgroundFocusX", "REAL NOT NULL DEFAULT 0.5", cancellationToken);
             await AddColumnIfMissingAsync(connection, "CharacterMediaPresentations", "BackgroundFocusY", "REAL NOT NULL DEFAULT 0.5", cancellationToken);
+            await AddColumnIfMissingAsync(connection, "UserPersonas", "PortraitRelativePath", "TEXT NOT NULL DEFAULT ''", cancellationToken);
 
             await ExecuteAsync(connection, """
                 DROP INDEX IF EXISTS "IX_Relationships_CharacterId";
@@ -159,7 +160,7 @@ internal static class LocalSchemaMigrator
 
         var backupDirectory = Path.Combine(Path.GetDirectoryName(databasePath)!, "backups");
         Directory.CreateDirectory(backupDirectory);
-        var backupPath = Path.Combine(backupDirectory, $"tinta-viva-pre-v5-{DateTime.Now:yyyyMMdd-HHmmssfff}.db");
+        var backupPath = Path.Combine(backupDirectory, $"tinta-viva-pre-v{CurrentVersion}-{DateTime.Now:yyyyMMdd-HHmmssfff}.db");
         await using var command = connection.CreateCommand();
         command.CommandText = "VACUUM INTO $backupPath;";
         AddParameter(command, "$backupPath", backupPath);

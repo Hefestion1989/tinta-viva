@@ -69,6 +69,21 @@ public sealed class RepositoryIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Persists_a_private_portrait_path_per_user_persona()
+    {
+        Directory.CreateDirectory(_directory);
+        var repository = new CompanionRepository(
+            new CompanionDbContextFactory(Path.Combine(_directory, "portrait.db")), string.Empty);
+        await repository.InitializeAsync();
+        var user = await repository.GetActiveUserPersonaAsync();
+        user.PortraitRelativePath = Path.Combine("media", "originals", "portrait.png");
+
+        await repository.SaveUserPersonaAsync(user);
+
+        Assert.Equal(user.PortraitRelativePath, (await repository.GetUserPersonaAsync(user.Id))!.PortraitRelativePath);
+    }
+
+    [Fact]
     public void Rejects_underage_characters()
     {
         var character = new Character { Name = "Inválido", Age = 17 };

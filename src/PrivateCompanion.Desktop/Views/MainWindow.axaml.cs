@@ -41,6 +41,27 @@ public partial class MainWindow : Window
         await viewModel.ImportImagesAsync(localPaths);
     }
 
+    private async void AddUserPortrait_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel) return;
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Elegir retrato para mi identidad",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Imágenes")
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"]
+                }
+            ]
+        });
+
+        var localPath = files.FirstOrDefault()?.TryGetLocalPath();
+        if (!string.IsNullOrWhiteSpace(localPath)) await viewModel.ImportUserPortraitAsync(localPath);
+    }
+
     private void OpenMediaFolder_Click(object? sender, RoutedEventArgs e)
     {
         var directory = Path.Combine(CompanionPaths.DataDirectory, "media", "originals");

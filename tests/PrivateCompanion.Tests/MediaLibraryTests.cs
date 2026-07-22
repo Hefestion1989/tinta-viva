@@ -51,6 +51,25 @@ public sealed class MediaLibraryTests : IDisposable
         Assert.Equal(0.2, presentation.BackgroundFocusY);
     }
 
+    [Fact]
+    public async Task Imports_a_user_portrait_into_private_storage_without_modifying_the_source()
+    {
+        Directory.CreateDirectory(_directory);
+        var source = Path.Combine(_directory, "mi-retrato.png");
+        var originalBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 9, 8, 7, 6 };
+        await File.WriteAllBytesAsync(source, originalBytes);
+        var repository = new CompanionRepository(
+            new CompanionDbContextFactory(Path.Combine(_directory, "portrait.db")), string.Empty);
+        await repository.InitializeAsync();
+        var library = new LocalMediaLibrary(repository, Path.Combine(_directory, "data"));
+
+        var relativePath = await library.ImportUserPortraitAsync(source);
+
+        Assert.True(File.Exists(library.GetAbsolutePath(relativePath)));
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(source));
+        Assert.StartsWith(Path.Combine("media", "originals"), relativePath);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory)) Directory.Delete(_directory, true);

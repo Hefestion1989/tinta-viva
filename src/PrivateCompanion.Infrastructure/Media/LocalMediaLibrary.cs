@@ -39,15 +39,8 @@ public sealed class LocalMediaLibrary : IMediaLibrary
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var source = new FileInfo(sourcePath);
-                if (!source.Exists) throw new FileNotFoundException("El archivo ya no existe.", source.FullName);
-                if (!SupportedExtensions.Contains(source.Extension)) throw new InvalidDataException("Formato no admitido.");
-                if (source.Length == 0) throw new InvalidDataException("El archivo está vacío.");
-                if (source.Length > MaximumFileSize) throw new InvalidDataException("La imagen supera el límite de 100 MB.");
-
-                string hash;
-                await using (var input = source.OpenRead())
-                    hash = Convert.ToHexString(await SHA256.HashDataAsync(input, cancellationToken)).ToLowerInvariant();
+                var source = ValidateSource(sourcePath);
+                var hash = await CalculateHashAsync(source, cancellationToken);
 
                 if (!knownHashes.Add(hash))
                 {
@@ -55,14 +48,7 @@ public sealed class LocalMediaLibrary : IMediaLibrary
                     continue;
                 }
 
-                var fileName = $"{hash}{source.Extension.ToLowerInvariant()}";
-                var destination = EnsureInsideDataRoot(Path.Combine(_originalsDirectory, fileName));
-                if (!File.Exists(destination))
-                {
-                    await using var input = new FileStream(source.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
-                    await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
-                    await input.CopyToAsync(output, cancellationToken);
-                }
+                var destination = await CopyToPrivateStorageAsync(source, hash, cancellationToken);
 
                 await _repository.SaveMediaAsync(new MediaAsset
                 {
@@ -85,8 +71,48 @@ public sealed class LocalMediaLibrary : IMediaLibrary
         return new MediaImportResult(imported, skipped, errors);
     }
 
+    public async Task<string> ImportUserPortraitAsync(string sourcePath, CancellationToken cancellationToken = default)
+    {
+        var source = ValidateSource(sourcePath);
+        var hash = await CalculateHashAsync(source, cancellationToken);
+        var destination = await CopyToPrivateStorageAsync(source, hash, cancellationToken);
+        return Path.GetRelativePath(_dataRoot, destination);
+    }
+
     public string GetAbsolutePath(MediaAsset asset) =>
         EnsureInsideDataRoot(Path.Combine(_dataRoot, asset.RelativePath));
+
+    public string GetAbsolutePath(string relativePath) =>
+        EnsureInsideDataRoot(Path.Combine(_dataRoot, relativePath));
+
+    private static FileInfo ValidateSource(string sourcePath)
+    {
+        var source = new FileInfo(sourcePath);
+        if (!source.Exists) throw new FileNotFoundException("El archivo ya no existe.", source.FullName);
+        if (!SupportedExtensions.Contains(source.Extension)) throw new InvalidDataException("Formato no admitido.");
+        if (source.Length == 0) throw new InvalidDataException("El archivo está vacío.");
+        if (source.Length > MaximumFileSize) throw new InvalidDataException("La imagen supera el límite de 100 MB.");
+        return source;
+    }
+
+    private static async Task<string> CalculateHashAsync(FileInfo source, CancellationToken cancellationToken)
+    {
+        await using var input = source.OpenRead();
+        return Convert.ToHexString(await SHA256.HashDataAsync(input, cancellationToken)).ToLowerInvariant();
+    }
+
+    private async Task<string> CopyToPrivateStorageAsync(FileInfo source, string hash, CancellationToken cancellationToken)
+    {
+        var fileName = $"{hash}{source.Extension.ToLowerInvariant()}";
+        var destination = EnsureInsideDataRoot(Path.Combine(_originalsDirectory, fileName));
+        if (File.Exists(destination)) return destination;
+
+        await using var input = new FileStream(source.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+        await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
+        await input.CopyToAsync(output, cancellationToken);
+        return destination;
+    }
+
 
     private string EnsureInsideDataRoot(string path)
     {
