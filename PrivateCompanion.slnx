@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PrivateCompanion.Application/PrivateCompanion.Application.csproj" />
+    <Project Path="src/PrivateCompanion.Desktop/PrivateCompanion.Desktop.csproj" />
+    <Project Path="src/PrivateCompanion.Domain/PrivateCompanion.Domain.csproj" />
+    <Project Path="src/PrivateCompanion.Infrastructure/PrivateCompanion.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PrivateCompanion.Tests/PrivateCompanion.Tests.csproj" />
+  </Folder>
+</Solution>

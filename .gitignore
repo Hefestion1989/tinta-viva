@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+artifacts/
+tmp/
+*.db
+*.db-*
+backups/
+media/
+logs/
+.env*

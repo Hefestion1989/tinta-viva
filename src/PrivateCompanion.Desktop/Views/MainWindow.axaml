@@ -1,0 +1,467 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PrivateCompanion.Desktop.ViewModels"
+        x:Class="PrivateCompanion.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        x:CompileBindings="False"
+        Icon="/Assets/private-companion.ico"
+        Title="Tinta Viva"
+        Width="1360" Height="800"
+        MinWidth="1000" MinHeight="640"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid ColumnDefinitions="220,*,280" Background="#0B0D12" ClipToBounds="True">
+        <!-- Navegación y personajes -->
+        <Border Grid.Column="0" Background="#11141B" BorderBrush="#252936" BorderThickness="0,0,1,0" Padding="14" ClipToBounds="True">
+            <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+                <StackPanel Margin="4,4,4,18">
+                    <TextBlock Text="TINTA" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" LetterSpacing="2" />
+                    <TextBlock Text="Viva" FontSize="25" FontWeight="SemiBold" />
+                    <TextBlock Text="Universos • personajes • continuidad" FontSize="11" Foreground="#8F95A5" Margin="0,4,0,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,16">
+                    <Button Classes="nav" Content="●  Conversación" Command="{Binding NavigateCommand}" CommandParameter="Chat" />
+                    <Button Classes="nav" Content="◆  Universo y canon" Command="{Binding NavigateCommand}" CommandParameter="Universo" />
+                    <Button Classes="nav" Content="♥  Perfil y personalidad" Command="{Binding NavigateCommand}" CommandParameter="Perfil" />
+                    <Button Classes="nav" Content="◈  Memoria y diario" Command="{Binding NavigateCommand}" CommandParameter="Memoria" />
+                    <Button Classes="nav" Content="▣  Galería" Command="{Binding NavigateCommand}" CommandParameter="Galería" />
+                    <Button Classes="nav" Content="◎  Mis identidades" Command="{Binding NavigateCommand}" CommandParameter="Usuarios" />
+                    <Button Classes="nav" Content="⚙  Configuración" Command="{Binding NavigateCommand}" CommandParameter="Configuración" />
+                </StackPanel>
+
+                <Border Grid.Row="2" Background="#171A22" CornerRadius="10" Padding="10" Margin="0,0,0,12">
+                    <StackPanel Spacing="7">
+                        <TextBlock Text="IDENTIDAD ACTIVA" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                        <ComboBox ItemsSource="{Binding UserPersonas}" SelectedItem="{Binding SelectedUserPersona}"
+                                  DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding !IsBusy}" />
+                        <Button Classes="secondary" Content="Administrar identidades" Command="{Binding NavigateCommand}" CommandParameter="Usuarios" FontSize="11" />
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto">
+                    <TextBlock Text="PERSONAJES" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" Margin="8,0,0,8" />
+                    <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="40,*" Margin="3,5">
+                                    <Border Width="34" Height="34" CornerRadius="17" Background="#7C5CFC">
+                                        <TextBlock Text="♥" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Age, StringFormat='{}{0} años'}" FontSize="11" Foreground="#8F95A5" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Button Grid.Row="2" Classes="secondary" Content="+ Nuevo personaje" Command="{Binding NewCharacterCommand}" Margin="0,10,0,0" />
+                </Grid>
+
+                <Border Grid.Row="4" Background="#171A22" CornerRadius="9" Padding="10" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="PRIVACIDAD" FontSize="10" Foreground="#7CDAA3" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="11" Foreground="#ABB0BF" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Contenido principal -->
+        <Grid Grid.Column="1" Background="#0E1117" ClipToBounds="True">
+            <!-- Chat -->
+            <Grid IsVisible="{Binding IsChat}" RowDefinitions="Auto,*,Auto">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="22,15">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding CharacterName}" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ProviderStatus}" FontSize="11" Foreground="#8F95A5" />
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" Width="250" ItemsSource="{Binding Conversations}" SelectedItem="{Binding SelectedConversation}"
+                                  DisplayMemberBinding="{Binding Title}" PlaceholderText="Sin conversaciones" />
+                        <Button Grid.Column="2" Classes="secondary" Content="+ Nueva charla" Command="{Binding NewConversationCommand}" />
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1" ClipToBounds="True">
+                    <Image Source="{Binding ChatBackgroundPreview}" Stretch="UniformToFill" Opacity="0.34" IsVisible="{Binding HasChatBackground}"
+                           RenderTransformOrigin="{Binding BackgroundTransformOrigin}">
+                        <Image.RenderTransform><ScaleTransform ScaleX="{Binding BackgroundZoom}" ScaleY="{Binding BackgroundZoom}" /></Image.RenderTransform>
+                    </Image>
+                    <Border Background="#A60E1117" IsVisible="{Binding HasChatBackground}" />
+                    <ListBox ItemsSource="{Binding Messages}" Background="Transparent" BorderThickness="0" Padding="26,18">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#E6171A22" BorderBrush="#292E3B" BorderThickness="1" CornerRadius="12" Padding="14,11" Margin="0,5">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Author}" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" Margin="0,0,0,5" />
+                                        <SelectableTextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="14" LineHeight="21" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+
+                <Border Grid.Row="2" BorderBrush="#252936" BorderThickness="0,1,0,0" Padding="20,14" Background="#11141B">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10">
+                        <TextBox Text="{Binding ChatInput}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" MaxHeight="130"
+                                 PlaceholderText="Escribí algo… El primer mensaje puede iniciar el modelo local." Padding="13,10" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                            <Button Classes="secondary" Content="Detener" Command="{Binding CancelGenerationCommand}" IsVisible="{Binding IsBusy}" />
+                            <Button Classes="primary" Content="Enviar" Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="2,8,0,0">
+                            <Button Classes="secondary" Content="Cerrar sesión y crear diario" Command="{Binding CloseSessionCommand}" IsEnabled="{Binding !IsBusy}" />
+                            <TextBlock Text="Todo se guarda en SQLite local" FontSize="11" Foreground="#747B8D" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Universo -->
+            <Grid IsVisible="{Binding IsUniverse}" RowDefinitions="Auto,*">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel><TextBlock Text="Universo y canon" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Una fuente compartida para mundos importados, reglas y hechos inamovibles." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="+ Nuevo universo" Command="{Binding NewUniverseCommand}" />
+                        <Button Grid.Column="2" Classes="primary" Content="Guardar universo" Command="{Binding SaveUniverseCommand}" />
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="26,22">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="UNIVERSO ACTIVO" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                        <ComboBox ItemsSource="{Binding Universes}" SelectedItem="{Binding SelectedUniverse}" DisplayMemberBinding="{Binding Name}" />
+                        <Grid ColumnDefinitions="2*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Nombre" Classes="label" /><TextBox Text="{Binding UniverseName}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Tono" Classes="label" /><TextBox Text="{Binding UniverseTone}" /></StackPanel>
+                        </Grid>
+                        <StackPanel><TextBlock Text="Resumen del mundo" /><TextBox Text="{Binding UniverseSummary}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" /></StackPanel>
+                        <StackPanel><TextBlock Text="Canon y hechos inamovibles" /><TextBox Text="{Binding UniverseCanon}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="190" /></StackPanel>
+                        <StackPanel><TextBlock Text="Reglas del mundo" /><TextBox Text="{Binding UniverseRules}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" /></StackPanel>
+                        <StackPanel><TextBlock Text="Origen del material" /><TextBox Text="{Binding UniverseSource}" /></StackPanel>
+                        <Border Background="#171A22" CornerRadius="9" Padding="12">
+                            <TextBlock Text="Podés pegar aquí el canon exportado de una novela interactiva. El contenido queda en SQLite local y se incorpora al contexto de los personajes vinculados." TextWrapping="Wrap" FontSize="11" Foreground="#9096A6" />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Perfil -->
+            <Grid IsVisible="{Binding IsProfile}" RowDefinitions="Auto,*">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel><TextBlock Text="Identidad y personalidad" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="El perfil se versiona: los cambios futuros no borran su historia." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                        <Button Grid.Column="1" Classes="primary" Content="Guardar perfil" Command="{Binding SaveCharacterCommand}" />
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="26,22">
+                    <StackPanel Spacing="18">
+                        <TextBlock Text="DATOS BASE" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                        <StackPanel><TextBlock Text="Universo compartido" Classes="label" /><ComboBox ItemsSource="{Binding Universes}" SelectedItem="{Binding SelectedUniverse}" DisplayMemberBinding="{Binding Name}" /></StackPanel>
+                        <Grid ColumnDefinitions="2*,*,2*" ColumnSpacing="12">
+                            <StackPanel><TextBlock Text="Nombre" Classes="label" /><TextBox Text="{Binding CharacterName}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Edad" /><NumericUpDown Value="{Binding CharacterAge}" Minimum="18" Maximum="120" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Idioma" /><TextBox Text="{Binding CharacterLanguage}" /></StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Apariencia" /><TextBox Text="{Binding Appearance}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Historia" /><TextBox Text="{Binding Backstory}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" /></StackPanel>
+                        </Grid>
+                        <StackPanel><TextBlock Text="Personalidad en palabras" /><TextBox Text="{Binding PersonalityNotes}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" /></StackPanel>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Profesión" /><TextBox Text="{Binding Profession}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Gustos" /><TextBox Text="{Binding Likes}" /></StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Forma de hablar" /><TextBox Text="{Binding SpeechStyle}" AcceptsReturn="True" TextWrapping="Wrap" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Objetivos" /><TextBox Text="{Binding Goals}" AcceptsReturn="True" TextWrapping="Wrap" /></StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Estilo afectivo" /><TextBox Text="{Binding AffectiveStyle}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Estilo romántico" /><TextBox Text="{Binding RomanticStyle}" /></StackPanel>
+                        </Grid>
+                        <StackPanel><TextBlock Text="Estilo de humor" /><TextBox Text="{Binding HumorStyle}" /></StackPanel>
+
+                        <TextBlock Text="RASGOS CONFIGURABLES" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" Margin="0,12,0,0" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="26">
+                            <StackPanel Spacing="10">
+                                <StackPanel><TextBlock Text="Romanticismo" /><Slider Minimum="0" Maximum="1" Value="{Binding Romanticism}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Extroversión" /><Slider Minimum="0" Maximum="1" Value="{Binding Extroversion}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Humor" /><Slider Minimum="0" Maximum="1" Value="{Binding Humor}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Calma" /><Slider Minimum="0" Maximum="1" Value="{Binding Calm}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Seguridad" /><Slider Minimum="0" Maximum="1" Value="{Binding Confidence}" /></StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="10">
+                                <StackPanel><TextBlock Text="Afectividad" /><Slider Minimum="0" Maximum="1" Value="{Binding Affection}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Independencia" /><Slider Minimum="0" Maximum="1" Value="{Binding Independence}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Iniciativa" /><Slider Minimum="0" Maximum="1" Value="{Binding Initiative}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Formalidad" /><Slider Minimum="0" Maximum="1" Value="{Binding Formality}" /></StackPanel>
+                                <StackPanel><TextBlock Text="Intensidad emocional" /><Slider Minimum="0" Maximum="1" Value="{Binding EmotionalIntensity}" /></StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Identidades del usuario -->
+            <Grid IsVisible="{Binding IsUsers}" RowDefinitions="Auto,*">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
+                        <StackPanel><TextBlock Text="Mis identidades" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Cada perfil conserva conversaciones, recuerdos y vínculo propios con cada personaje." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="＋ Nueva identidad" Command="{Binding NewUserPersonaCommand}" />
+                        <Button Grid.Column="2" Classes="primary" Content="Guardar y usar" Command="{Binding SaveUserPersonaCommand}" />
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="28,24" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="16">
+                        <Border Background="#171A22" CornerRadius="10" Padding="13">
+                            <TextBlock Text="Cambiar de identidad no mezcla conversaciones, memoria ni evolución de la relación." TextWrapping="Wrap" Foreground="#B8BDCA" />
+                        </Border>
+                        <Grid ColumnDefinitions="2*,*,2*" ColumnSpacing="12">
+                            <StackPanel><TextBlock Text="Nombre" /><TextBox Text="{Binding UserName}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Edad" /><NumericUpDown Value="{Binding UserAge}" Minimum="18" Maximum="120" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Pronombres (opcional)" /><TextBox Text="{Binding UserPronouns}" /></StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Apariencia" /><TextBox Text="{Binding UserAppearance}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Quién soy / historia" /><TextBox Text="{Binding UserAbout}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" /></StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <StackPanel><TextBlock Text="Profesión" /><TextBox Text="{Binding UserProfession}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Gustos e intereses" /><TextBox Text="{Binding UserLikes}" /></StackPanel>
+                        </Grid>
+                        <StackPanel><TextBlock Text="Cómo prefiero comunicarme" />
+                            <TextBox Text="{Binding UserCommunicationStyle}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="75" /></StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Memoria -->
+            <Grid IsVisible="{Binding IsMemory}" RowDefinitions="Auto,*">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
+                    <StackPanel><TextBlock Text="Memoria y diario" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Los recuerdos son editables y tienen procedencia; el sandbox queda fuera del canon." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                </Border>
+                <Grid Grid.Row="1" ColumnDefinitions="3*,2*" Margin="22" ColumnSpacing="16">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <TextBlock Text="RECUERDOS" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" Margin="4,0,0,8" />
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Memories}" SelectedItem="{Binding SelectedMemory}" Background="Transparent">
+                            <ListBox.ItemTemplate><DataTemplate>
+                                <Border Background="#171A22" CornerRadius="9" Padding="12" Margin="0,4">
+                                    <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Kind}" FontSize="10" Foreground="#9B8BFF" />
+                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" MaxHeight="62" Foreground="#B8BDCA" Margin="0,5,0,0" /></StackPanel>
+                                </Border>
+                            </DataTemplate></ListBox.ItemTemplate>
+                        </ListBox>
+                        <Button Grid.Row="2" Classes="secondary" Content="Eliminar recuerdo seleccionado" Command="{Binding DeleteSelectedMemoryCommand}" Margin="0,8,0,0" />
+                    </Grid>
+                    <ScrollViewer Grid.Column="1">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="AGREGAR RECUERDO" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                            <TextBlock Text="Tipo" /><ComboBox ItemsSource="{Binding MemoryKinds}" SelectedItem="{Binding SelectedMemoryKind}" />
+                            <TextBlock Text="Título" /><TextBox Text="{Binding NewMemoryTitle}" />
+                            <TextBlock Text="Contenido" /><TextBox Text="{Binding NewMemoryContent}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" />
+                            <TextBlock Text="Importancia" /><Slider Minimum="0" Maximum="1" Value="{Binding NewMemoryImportance}" />
+                            <Button Classes="primary" Content="Guardar recuerdo" Command="{Binding AddMemoryCommand}" />
+                            <TextBlock Text="DIARIO DE SESIONES" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" Margin="0,16,0,0" />
+                            <ItemsControl ItemsSource="{Binding Diary}"><ItemsControl.ItemTemplate><DataTemplate>
+                                <Border Background="#171A22" CornerRadius="9" Padding="11" Margin="0,4">
+                                    <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="12" Foreground="#B8BDCA" /></StackPanel>
+                                </Border>
+                            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+
+            <!-- Galería -->
+            <Grid IsVisible="{Binding IsGallery}" RowDefinitions="Auto,*">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                        <StackPanel><TextBlock Text="Galería privada" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Tus imágenes y las futuras generaciones de ComfyUI conviven en la misma biblioteca local." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Classes="secondary" Content="Abrir carpeta" Click="OpenMediaFolder_Click" />
+                            <Button Classes="primary" Content="＋ Agregar imágenes" Click="AddImages_Click" IsEnabled="{Binding !IsBusy}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Grid Grid.Row="1">
+                    <Border IsVisible="{Binding !HasGalleryItems}" Background="#141821" BorderBrush="#303545" BorderThickness="1" CornerRadius="14" Padding="30" Margin="30" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="610">
+                        <StackPanel HorizontalAlignment="Center" Spacing="10">
+                            <TextBlock Text="▣" FontSize="48" Foreground="#7C5CFC" HorizontalAlignment="Center" />
+                            <TextBlock Text="Tu galería todavía está vacía" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="Podés agregar varias imágenes creadas por vos. Se copian al espacio privado, se vinculan al personaje actual y el original queda intacto." TextWrapping="Wrap" TextAlignment="Center" Foreground="#9DA3B2" />
+                            <TextBlock Text="El generador no se elimina: ComfyUI se sumará luego con un workflow de identidad para conservar rostro y cuerpo." TextWrapping="Wrap" TextAlignment="Center" Foreground="#D4B46C" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <ScrollViewer IsVisible="{Binding HasGalleryItems}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <ListBox ItemsSource="{Binding Gallery}" SelectedItem="{Binding SelectedGalleryItem}" Margin="24" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="250" Background="#141821" BorderBrush="#303545" BorderThickness="1" CornerRadius="12" Margin="6" ClipToBounds="True">
+                                        <Grid RowDefinitions="170,Auto">
+                                            <Border Background="#0E1117">
+                                                <Image Source="{Binding Preview}" Stretch="UniformToFill" />
+                                            </Border>
+                                            <StackPanel Grid.Row="1" Margin="12,10" Spacing="4">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Source}" FontSize="11" Foreground="#9B8BFF" />
+                                                <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:dd/MM/yyyy HH:mm}'}" FontSize="10" Foreground="#7F8594" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+
+            <!-- Configuración -->
+            <Grid IsVisible="{Binding IsSettings}" RowDefinitions="Auto,*">
+                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
+                    <StackPanel><TextBlock Text="Motor local" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Solo se aceptan endpoints de localhost. No hay telemetría ni nube." Foreground="#8F95A5" FontSize="12" /></StackPanel>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="28,24">
+                    <StackPanel MaxWidth="720" HorizontalAlignment="Left" Spacing="12">
+                        <TextBlock Text="Proveedor" /><ComboBox ItemsSource="{Binding ProviderKinds}" SelectedItem="{Binding SelectedProviderKind}" />
+                        <TextBlock Text="Nombre del perfil" /><TextBox Text="{Binding ProviderName}" />
+                        <TextBlock Text="URL base" /><TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="http://127.0.0.1:1234/v1" />
+                        <TextBlock Text="Modelo / alias" /><TextBox Text="{Binding ProviderModel}" />
+                        <TextBlock Text="Iniciador local opcional (.bat)" /><TextBox Text="{Binding ProviderLaunchCommand}" />
+                        <CheckBox Content="Iniciar el motor automáticamente cuando haga falta" IsChecked="{Binding ProviderAutoStart}" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                            <StackPanel><TextBlock Text="Temperatura" /><Slider Minimum="0" Maximum="1.5" Value="{Binding ProviderTemperature}" /></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Máximo de tokens" /><NumericUpDown Minimum="64" Maximum="4096" Value="{Binding ProviderMaxTokens}" /></StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                            <Button Classes="primary" Content="Guardar" Command="{Binding SaveProviderCommand}" />
+                            <Button Classes="secondary" Content="Iniciar y comprobar" Command="{Binding TestProviderCommand}" />
+                        </StackPanel>
+                        <Border Background="#171A22" CornerRadius="9" Padding="12" Margin="0,8,0,0"><TextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap" Foreground="#B8BDCA" /></Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- Contexto lateral -->
+        <Border Grid.Column="2" Background="#11141B" BorderBrush="#252936" BorderThickness="1,0,0,0" Padding="18,54,18,18" ClipToBounds="True">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="CONTEXTO ACTUAL" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
+                    <Border Height="210" Background="#171A22" CornerRadius="14" ClipToBounds="True">
+                        <Grid>
+                            <TextBlock Text="♥" FontSize="52" Foreground="#4A3B85" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Image Source="{Binding CharacterPortraitPreview}" Stretch="UniformToFill" IsVisible="{Binding HasPortrait}"
+                                   RenderTransformOrigin="{Binding PortraitTransformOrigin}">
+                                <Image.RenderTransform><ScaleTransform ScaleX="{Binding PortraitZoom}" ScaleY="{Binding PortraitZoom}" /></Image.RenderTransform>
+                            </Image>
+                        </Grid>
+                    </Border>
+                    <Border Background="#171A22" CornerRadius="12" Padding="14">
+                        <StackPanel><TextBlock Text="{Binding SelectedCharacterSubtitle}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ActiveUserSubtitle}" FontSize="11" Foreground="#9B8BFF" Margin="0,3,0,0" />
+                            <TextBlock Text="{Binding RelationshipMood}" FontSize="11" Foreground="#9DA3B2" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                    </Border>
+
+                    <TextBlock Text="ÁLBUM" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
+                    <Border Background="#171A22" CornerRadius="12" ClipToBounds="True">
+                        <StackPanel>
+                            <Border Height="135" Background="#0E1117">
+                                <Grid>
+                                    <TextBlock Text="Sin imágenes" Foreground="#747B8D" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Image Source="{Binding AlbumItem.Preview}" Stretch="UniformToFill" IsVisible="{Binding HasAlbumItem}" />
+                                </Grid>
+                            </Border>
+                            <StackPanel Margin="10" Spacing="8">
+                                <TextBlock Text="{Binding AlbumItem.Name}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                <Button Classes="secondary" Content="Ver imagen grande" Click="OpenCurrentImage_Click" IsEnabled="{Binding HasAlbumItem}" />
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
+                                    <Button Classes="secondary" Content="‹ Anterior" Command="{Binding PreviousAlbumImageCommand}" />
+                                    <Button Grid.Column="1" Classes="secondary" Content="Siguiente ›" Command="{Binding NextAlbumImageCommand}" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
+                                    <Button Classes="secondary" Content="Rostro" Command="{Binding UseAlbumAsPortraitCommand}" IsEnabled="{Binding HasAlbumItem}" />
+                                    <Button Grid.Column="1" Classes="primary" Content="Fondo" Command="{Binding UseAlbumAsBackgroundCommand}" IsEnabled="{Binding HasAlbumItem}" />
+                                </Grid>
+                                <Button Classes="secondary" Content="Quitar fondo del chat" Command="{Binding ClearChatBackgroundCommand}" IsVisible="{Binding HasChatBackground}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="ENCUADRE" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
+                    <Expander Header="Ajustar retrato y fondo" Background="#171A22" Padding="10" CornerRadius="10">
+                        <StackPanel Spacing="9" Margin="0,8,0,0">
+                            <TextBlock Text="RETRATO" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                            <TextBlock Text="Zoom" FontSize="10" /><Slider Minimum="1" Maximum="4" Value="{Binding PortraitZoom}" IsEnabled="{Binding HasPortrait}" />
+                            <TextBlock Text="Foco horizontal" FontSize="10" /><Slider Minimum="0" Maximum="1" Value="{Binding PortraitFocusX}" IsEnabled="{Binding HasPortrait}" />
+                            <TextBlock Text="Foco vertical" FontSize="10" /><Slider Minimum="0" Maximum="1" Value="{Binding PortraitFocusY}" IsEnabled="{Binding HasPortrait}" />
+                            <TextBlock Text="FONDO" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" Margin="0,6,0,0" />
+                            <TextBlock Text="Zoom" FontSize="10" /><Slider Minimum="1" Maximum="4" Value="{Binding BackgroundZoom}" IsEnabled="{Binding HasChatBackground}" />
+                            <TextBlock Text="Foco horizontal" FontSize="10" /><Slider Minimum="0" Maximum="1" Value="{Binding BackgroundFocusX}" IsEnabled="{Binding HasChatBackground}" />
+                            <TextBlock Text="Foco vertical" FontSize="10" /><Slider Minimum="0" Maximum="1" Value="{Binding BackgroundFocusY}" IsEnabled="{Binding HasChatBackground}" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="7" Margin="0,5,0,0">
+                                <Button Classes="secondary" Content="Restablecer" Command="{Binding ResetMediaFramingCommand}" />
+                                <Button Grid.Column="1" Classes="primary" Content="Guardar" Command="{Binding SaveMediaFramingCommand}" />
+                            </Grid>
+                        </StackPanel>
+                    </Expander>
+
+                    <TextBlock Text="RELACIÓN" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
+                    <StackPanel Spacing="8">
+                        <StackPanel><TextBlock Text="Confianza" FontSize="11" /><ProgressBar Value="{Binding RelationshipTrust}" Maximum="100" Height="5" /></StackPanel>
+                        <StackPanel><TextBlock Text="Cercanía" FontSize="11" /><ProgressBar Value="{Binding RelationshipCloseness}" Maximum="100" Height="5" /></StackPanel>
+                        <StackPanel><TextBlock Text="Afecto" FontSize="11" /><ProgressBar Value="{Binding RelationshipAffection}" Maximum="100" Height="5" /></StackPanel>
+                        <StackPanel><TextBlock Text="Intimidad" FontSize="11" /><ProgressBar Value="{Binding RelationshipIntimacy}" Maximum="100" Height="5" /></StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Text="ESCENA" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" Margin="0,8,0,0" />
+                    <TextBlock Text="Modo de continuidad" FontSize="11" /><ComboBox ItemsSource="{Binding SceneModes}" SelectedItem="{Binding SelectedSceneMode}" />
+                    <TextBlock Text="Título" FontSize="11" /><TextBox Text="{Binding SceneTitle}" />
+                    <TextBlock Text="Premisa y situación" FontSize="11" /><TextBox Text="{Binding ScenePremise}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
+                        <StackPanel><TextBlock Text="Lugar" FontSize="11" /><TextBox Text="{Binding ScenePlace}" /></StackPanel>
+                        <StackPanel Grid.Column="1"><TextBlock Text="Momento" FontSize="11" /><TextBox Text="{Binding SceneTime}" /></StackPanel>
+                    </Grid>
+                    <TextBlock Text="Atmósfera" FontSize="11" /><TextBox Text="{Binding SceneAtmosphere}" />
+                    <TextBlock Text="Participantes presentes" FontSize="11" /><TextBox Text="{Binding SceneParticipants}" />
+                    <TextBlock Text="Intención dramática" FontSize="11" /><TextBox Text="{Binding SceneIntent}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+                    <TextBlock Text="Quién sabe qué" FontSize="11" /><TextBox Text="{Binding SceneKnownFacts}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+                    <TextBlock Text="Límites de esta escena" FontSize="11" /><TextBox Text="{Binding SceneBoundaries}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+                    <Button Classes="secondary" Content="Guardar escena" Command="{Binding SaveSceneCommand}" />
+                    <Border Background="#171A22" CornerRadius="9" Padding="10" Margin="0,6,0,0">
+                        <TextBlock Text="Canonical incorpora la sesión a la memoria. Sandbox permite explorar situaciones sin alterar la historia principal." TextWrapping="Wrap" FontSize="11" Foreground="#9096A6" />
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Button Grid.ColumnSpan="3"
+                Width="36"
+                Height="34"
+                Margin="0,9,10,0"
+                Padding="0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Background="#D92D3C"
+                Foreground="White"
+                CornerRadius="9"
+                FontSize="16"
+                FontWeight="SemiBold"
+                Content="&#x2715;"
+                ToolTip.Tip="Cerrar Tinta Viva"
+                Click="CloseApplication_Click" />
+    </Grid>
+</Window>
