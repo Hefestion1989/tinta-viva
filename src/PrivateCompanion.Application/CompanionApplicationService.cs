@@ -110,6 +110,12 @@ public sealed class CompanionApplicationService
     public Task<ProviderProbe> ProbeProviderAsync(bool allowAutoStart, CancellationToken cancellationToken = default) =>
         ProbeInternalAsync(allowAutoStart, cancellationToken);
 
+    public Task<ProviderProbe> ProbeProviderAsync(
+        ProviderProfile provider,
+        bool allowAutoStart,
+        CancellationToken cancellationToken = default) =>
+        _textGateway.ProbeAsync(provider, allowAutoStart, cancellationToken);
+
     private async Task<ProviderProbe> ProbeInternalAsync(bool allowAutoStart, CancellationToken cancellationToken)
     {
         var provider = await _repository.GetActiveProviderAsync(cancellationToken);

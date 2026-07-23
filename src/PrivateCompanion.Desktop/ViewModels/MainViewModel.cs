@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -29,6 +30,7 @@ public partial class MainViewModel(
     private ProviderProfile? _provider;
     private CharacterMediaPresentation? _mediaPresentation;
     private bool _isInitializing;
+    private bool _isLoadingProviderFields;
 
     public ObservableCollection<UserPersonaListItem> UserPersonas { get; } = [];
     public ObservableCollection<UniverseListItem> Universes { get; } = [];
@@ -39,6 +41,8 @@ public partial class MainViewModel(
     public ObservableCollection<DiaryListItem> Diary { get; } = [];
     public ObservableCollection<GalleryItemViewModel> Gallery { get; } = [];
     public ObservableCollection<ProviderProfile> Providers { get; } = [];
+    public ObservableCollection<string> DetectedProviderModels { get; } = [];
+    public IReadOnlyList<ProviderPreset> RemoteProviderPresets { get; } = ProviderPresetCatalog.Online;
     public IReadOnlyList<MemoryKind> MemoryKinds { get; } = Enum.GetValues<MemoryKind>();
     public IReadOnlyList<ProviderKind> ProviderKinds { get; } = Enum.GetValues<ProviderKind>();
     public IReadOnlyList<ProviderLocation> ProviderLocations { get; } = Enum.GetValues<ProviderLocation>();
@@ -130,6 +134,9 @@ public partial class MainViewModel(
     [ObservableProperty] public partial bool ProviderAutoStart { get; set; }
     [ObservableProperty] public partial string ProviderApiToken { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasStoredProviderToken { get; set; }
+    [ObservableProperty] public partial ProviderPreset? SelectedRemoteProviderPreset { get; set; }
+    [ObservableProperty] public partial string? SelectedDetectedProviderModel { get; set; }
+    [ObservableProperty] public partial string ProviderSetupHelp { get; set; } = "Elegí una opción para completar la conexión sin memorizar direcciones técnicas.";
     [ObservableProperty] public partial double ProviderTemperature { get; set; } = 0.85;
     [ObservableProperty] public partial int ProviderMaxTokens { get; set; } = 512;
 
@@ -157,6 +164,8 @@ public partial class MainViewModel(
     public bool IsSettings => ActiveSection == "Configuración";
     public bool IsLocalProvider => SelectedProviderLocation == ProviderLocation.Local;
     public bool IsRemoteProvider => SelectedProviderLocation == ProviderLocation.Remote;
+    public bool HasDetectedProviderModels => DetectedProviderModels.Count > 0;
+    public bool HasProviderHelpLink => !string.IsNullOrWhiteSpace(SelectedRemoteProviderPreset?.HelpUrl);
     public string ProviderPrivacyText => IsLocalProvider
         ? "Modo local: prompts, respuestas y datos permanecen en este equipo."
         : "Modo online: los chats se guardan localmente, pero el contexto necesario para responder se envía al servidor remoto.";
@@ -237,6 +246,31 @@ public partial class MainViewModel(
         OnPropertyChanged(nameof(IsLocalProvider));
         OnPropertyChanged(nameof(IsRemoteProvider));
         OnPropertyChanged(nameof(ProviderPrivacyText));
+    }
+
+    partial void OnSelectedRemoteProviderPresetChanged(ProviderPreset? value)
+    {
+        OnPropertyChanged(nameof(HasProviderHelpLink));
+        if (value is null) return;
+        ProviderSetupHelp = value.Description;
+        if (_isLoadingProviderFields) return;
+
+        SelectedProviderLocation = ProviderLocation.Remote;
+        SelectedProviderKind = ProviderKind.OpenAICompatible;
+        ProviderName = value.ProfileName;
+        ProviderBaseUrl = value.BaseUrl;
+        ProviderModel = string.Empty;
+        DetectedProviderModels.Clear();
+        SelectedDetectedProviderModel = null;
+        OnPropertyChanged(nameof(HasDetectedProviderModels));
+        StatusText = value.Id == "custom"
+            ? "Ingresá la dirección HTTPS de tu servidor y, si corresponde, su clave."
+            : $"Preset «{value.Label}» preparado. Falta tu clave y elegir un modelo.";
+    }
+
+    partial void OnSelectedDetectedProviderModelChanged(string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) ProviderModel = value;
     }
 
     partial void OnSelectedGalleryItemChanged(GalleryItemViewModel? value)
@@ -557,23 +591,15 @@ public partial class MainViewModel(
     [RelayCommand]
     private async Task SaveProviderAsync()
     {
-        if (_provider is null) return;
-        _provider.Name = ProviderName.Trim(); _provider.Kind = SelectedProviderKind;
-        _provider.Location = SelectedProviderLocation;
-        _provider.BaseUrl = ProviderBaseUrl.Trim(); _provider.Model = ProviderModel.Trim();
-        _provider.LaunchCommand = IsLocalProvider ? ProviderLaunchCommand.Trim() : string.Empty;
-        _provider.AutoStart = IsLocalProvider && ProviderAutoStart;
-        _provider.Temperature = ProviderTemperature; _provider.MaxOutputTokens = ProviderMaxTokens;
-        await _repository.SaveProviderAsync(_provider);
-        if (!string.IsNullOrWhiteSpace(ProviderApiToken))
+        try
         {
-            await providerSecretStore.SaveAsync(_provider.Id, ProviderApiToken);
-            ProviderApiToken = string.Empty;
+            if (!TryBuildProviderDraft(out var provider)) return;
+            await PersistProviderAsync(provider);
         }
-        await LoadProvidersAsync(_provider.Id);
-        StatusText = IsLocalProvider
-            ? "Motor local guardado y activado."
-            : "Motor online guardado y activado. El token permanece protegido por Windows.";
+        catch (Exception ex)
+        {
+            ProviderStatus = ex.Message;
+        }
     }
 
     [RelayCommand]
@@ -604,7 +630,8 @@ public partial class MainViewModel(
         };
         SelectedProviderProfile = null;
         LoadProviderFields(_provider, false);
-        StatusText = "Configurá un servidor independiente o autohospedado compatible. No depende de OpenAI.";
+        SelectedRemoteProviderPreset = ProviderPresetCatalog.Online[0];
+        StatusText = "Elegí una opción guiada. Ningún servicio se conecta hasta que agregues sus datos y lo compruebes.";
     }
 
     [RelayCommand]
@@ -620,14 +647,65 @@ public partial class MainViewModel(
     [RelayCommand]
     private async Task TestProviderAsync()
     {
-        await SaveProviderAsync();
-        ProviderStatus = "Comprobando…";
+        if (!TryBuildProviderDraft(out var provider)) return;
+        ProviderStatus = "Comprobando sin cambiar el motor activo…";
         try
         {
-            var probe = await application.ProbeProviderAsync(true);
-            ProviderStatus = probe.Message + (probe.Models.Count > 0 ? $" Modelos: {string.Join(", ", probe.Models.Take(3))}" : "");
+            var probe = await ProbeDraftAsync(provider, IsLocalProvider);
+            if (!probe.IsAvailable)
+            {
+                ProviderStatus = $"{probe.Message} Tu motor anterior continúa activo.";
+                return;
+            }
+
+            UpdateDetectedModels(probe.Models);
+            if (string.IsNullOrWhiteSpace(ProviderModel) && probe.Models.Count > 0)
+                SelectedDetectedProviderModel = probe.Models[0];
+            provider.Model = ProviderModel.Trim();
+            await PersistProviderAsync(provider);
+            ProviderStatus = $"{probe.Message} Perfil guardado y activado.";
         }
         catch (Exception ex) { ProviderStatus = ex.Message; }
+    }
+
+    [RelayCommand]
+    private async Task DetectProviderModelsAsync()
+    {
+        if (!TryBuildProviderDraft(out var provider)) return;
+        ProviderStatus = "Buscando modelos sin cambiar el motor activo…";
+        try
+        {
+            var probe = await ProbeDraftAsync(provider, IsLocalProvider);
+            if (!probe.IsAvailable)
+            {
+                ProviderStatus = $"{probe.Message} No se modificó tu motor activo.";
+                return;
+            }
+
+            UpdateDetectedModels(probe.Models);
+            ProviderStatus = probe.Models.Count switch
+            {
+                0 => "El servidor respondió, pero no informó modelos. Podés escribir el identificador manualmente.",
+                1 => "Encontré un modelo y lo seleccioné. Revisalo y presioná «Guardar y comprobar».",
+                _ => $"Encontré {probe.Models.Count} modelos. Elegí uno de la lista."
+            };
+        }
+        catch (Exception ex) { ProviderStatus = ex.Message; }
+    }
+
+    [RelayCommand]
+    private void OpenProviderHelp()
+    {
+        var url = SelectedRemoteProviderPreset?.HelpUrl;
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ProviderStatus = $"No pude abrir la página: {ex.Message}";
+        }
     }
 
     public async Task ImportImagesAsync(IReadOnlyList<string> sourcePaths)
@@ -957,16 +1035,105 @@ public partial class MainViewModel(
     {
         _provider = provider;
         LoadProviderFields(provider, await providerSecretStore.ExistsAsync(provider.Id));
+        StatusText = provider.Location == ProviderLocation.Local
+            ? $"Perfil local «{provider.Name}» seleccionado."
+            : $"Perfil online «{provider.Name}» seleccionado.";
     }
 
     private void LoadProviderFields(ProviderProfile provider, bool hasStoredToken)
     {
+        _isLoadingProviderFields = true;
         ProviderName = provider.Name; SelectedProviderKind = provider.Kind; ProviderBaseUrl = provider.BaseUrl;
         ProviderModel = provider.Model; ProviderLaunchCommand = provider.LaunchCommand; ProviderAutoStart = provider.AutoStart;
         ProviderTemperature = provider.Temperature; ProviderMaxTokens = provider.MaxOutputTokens;
         SelectedProviderLocation = provider.Location;
         ProviderApiToken = string.Empty;
         HasStoredProviderToken = hasStoredToken;
+        DetectedProviderModels.Clear();
+        SelectedDetectedProviderModel = null;
+        SelectedRemoteProviderPreset = provider.Location == ProviderLocation.Remote
+            ? ProviderPresetCatalog.Match(provider.BaseUrl)
+            : null;
+        ProviderSetupHelp = SelectedRemoteProviderPreset?.Description
+            ?? "Tu motor local continúa siendo la opción predeterminada y privada.";
+        _isLoadingProviderFields = false;
+        OnPropertyChanged(nameof(HasDetectedProviderModels));
+        OnPropertyChanged(nameof(HasProviderHelpLink));
+    }
+
+    private bool TryBuildProviderDraft(out ProviderProfile provider)
+    {
+        provider = _provider ?? new ProviderProfile();
+        if (string.IsNullOrWhiteSpace(ProviderName))
+        {
+            ProviderStatus = "Escribí un nombre para reconocer este motor.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(ProviderBaseUrl) || ProviderBaseUrl.Trim() is "https://" or "http://")
+        {
+            ProviderStatus = "Falta la dirección completa del servidor.";
+            return false;
+        }
+
+        provider.Name = ProviderName.Trim();
+        provider.Kind = SelectedProviderKind;
+        provider.Location = SelectedProviderLocation;
+        provider.BaseUrl = ProviderBaseUrl.Trim();
+        provider.Model = ProviderModel.Trim();
+        provider.LaunchCommand = IsLocalProvider ? ProviderLaunchCommand.Trim() : string.Empty;
+        provider.AutoStart = IsLocalProvider && ProviderAutoStart;
+        provider.Temperature = ProviderTemperature;
+        provider.MaxOutputTokens = ProviderMaxTokens;
+        _provider = provider;
+        return true;
+    }
+
+    private async Task<ProviderProbe> ProbeDraftAsync(ProviderProfile provider, bool allowAutoStart)
+    {
+        var typedToken = ProviderApiToken.Trim();
+        var previousToken = await providerSecretStore.GetAsync(provider.Id);
+        var usingTemporaryToken = !string.IsNullOrWhiteSpace(typedToken);
+        if (usingTemporaryToken) await providerSecretStore.SaveAsync(provider.Id, typedToken);
+        try
+        {
+            return await application.ProbeProviderAsync(provider, allowAutoStart);
+        }
+        finally
+        {
+            if (usingTemporaryToken)
+            {
+                if (string.IsNullOrWhiteSpace(previousToken))
+                    await providerSecretStore.DeleteAsync(provider.Id);
+                else
+                    await providerSecretStore.SaveAsync(provider.Id, previousToken);
+            }
+        }
+    }
+
+    private void UpdateDetectedModels(IReadOnlyList<string> models)
+    {
+        var current = ProviderModel.Trim();
+        DetectedProviderModels.Clear();
+        foreach (var model in models.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
+            DetectedProviderModels.Add(model);
+        SelectedDetectedProviderModel = DetectedProviderModels.FirstOrDefault(x =>
+            string.Equals(x, current, StringComparison.OrdinalIgnoreCase))
+            ?? DetectedProviderModels.FirstOrDefault();
+        OnPropertyChanged(nameof(HasDetectedProviderModels));
+    }
+
+    private async Task PersistProviderAsync(ProviderProfile provider)
+    {
+        await _repository.SaveProviderAsync(provider);
+        if (!string.IsNullOrWhiteSpace(ProviderApiToken))
+        {
+            await providerSecretStore.SaveAsync(provider.Id, ProviderApiToken.Trim());
+            ProviderApiToken = string.Empty;
+        }
+        await LoadProvidersAsync(provider.Id);
+        StatusText = IsLocalProvider
+            ? "Motor local guardado y activado."
+            : "Motor online guardado y activado. El token permanece protegido por Windows.";
     }
 }
 

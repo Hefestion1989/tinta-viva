@@ -473,13 +473,27 @@
                             <TextBlock Text="{Binding ProviderPrivacyText}" TextWrapping="Wrap" Foreground="#A7E7C2" />
                         </Border>
 
+                        <Border IsVisible="{Binding IsRemoteProvider}" Background="#171A22" BorderBrush="#51458A" BorderThickness="1" CornerRadius="12" Padding="14">
+                            <StackPanel Spacing="9">
+                                <TextBlock Text="CONFIGURACIÓN GUIADA ONLINE" FontSize="10" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                <TextBlock Text="Elegí una opción. Tinta Viva completa la dirección técnica; vos conservás el control de la cuenta, la clave y el modelo." TextWrapping="Wrap" FontSize="11" Foreground="#B9BDCA" />
+                                <ComboBox ItemsSource="{Binding RemoteProviderPresets}" SelectedItem="{Binding SelectedRemoteProviderPreset}" DisplayMemberBinding="{Binding Label}" />
+                                <TextBlock Text="{Binding ProviderSetupHelp}" TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                <Button Classes="secondary" Content="Abrir página para obtener la clave" Command="{Binding OpenProviderHelpCommand}" IsVisible="{Binding HasProviderHelpLink}" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
                             <StackPanel><TextBlock Text="Ubicación" /><ComboBox ItemsSource="{Binding ProviderLocations}" SelectedItem="{Binding SelectedProviderLocation}" /></StackPanel>
                             <StackPanel Grid.Column="1"><TextBlock Text="Protocolo / proveedor" /><ComboBox ItemsSource="{Binding ProviderKinds}" SelectedItem="{Binding SelectedProviderKind}" /></StackPanel>
                         </Grid>
                         <TextBlock Text="Nombre del perfil" /><TextBox Text="{Binding ProviderName}" />
                         <TextBlock Text="URL base" /><TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="Local: http://127.0.0.1:1234/v1 · Online: https://servidor.example/v1" />
-                        <TextBlock Text="Modelo / alias" /><TextBox Text="{Binding ProviderModel}" />
+                        <TextBlock Text="Modelo / alias" /><TextBox Text="{Binding ProviderModel}" PlaceholderText="Podés escribirlo o usar «Buscar modelos»" />
+                        <StackPanel IsVisible="{Binding IsRemoteProvider}" Spacing="8">
+                            <Button Classes="secondary" Content="Buscar modelos disponibles" Command="{Binding DetectProviderModelsCommand}" HorizontalAlignment="Left" />
+                            <ComboBox ItemsSource="{Binding DetectedProviderModels}" SelectedItem="{Binding SelectedDetectedProviderModel}" IsVisible="{Binding HasDetectedProviderModels}" PlaceholderText="Elegí un modelo" MaxDropDownHeight="280" />
+                        </StackPanel>
 
                         <Border IsVisible="{Binding IsRemoteProvider}" Background="#211D16" BorderBrush="#6B5932" BorderThickness="1" CornerRadius="10" Padding="13">
                             <StackPanel Spacing="8">

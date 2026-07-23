@@ -4,20 +4,23 @@ Aplicación de escritorio local y de código abierto para narradores, escritores
 
 > Tus personajes, historias y recuerdos permanecen en tu computadora.
 
-Tinta Viva separa la experiencia narrativa del modelo: personajes, escenas, recuerdos, relaciones y conversaciones pertenecen a la aplicación, mientras que la generación se delega a un servidor local compatible con la API de OpenAI.
+Tinta Viva separa la experiencia narrativa del modelo: personajes, escenas, recuerdos, relaciones y conversaciones pertenecen a la aplicación, mientras que la generación se delega a un servidor local o, de forma opcional, a un servidor remoto OpenAI-compatible.
 
 ## Escritura libre y privada
 
 Tinta Viva está pensada primero como una herramienta narrativa. Admite aventura, drama, romance y también sexualidad o contenido erótico explícito entre personajes adultos cuando formen parte del relato. La aplicación no agrega filtros de contenido ni advertencias repetitivas: la respuesta concreta depende del modelo local elegido y de su configuración.
 
-No hay una nube propia, cuentas ni telemetría. La aplicación solo acepta conexiones con `localhost` o `127.0.0.1`, por lo que textos, fichas, recuerdos e imágenes permanecen bajo el control del usuario. Para una superficie especializada en relatos y roleplay adulto existe el proyecto independiente [Tinta Privada](https://github.com/Hefestion1989/tinta-privada), con almacenamiento separado.
+No hay una nube propia, cuentas ni telemetría. El modo local sólo acepta conexiones con `localhost` o `127.0.0.1`. El modo online es opcional y exige HTTPS: conserva fichas, recuerdos, imágenes e historial en el equipo, aunque envía al servidor elegido el contexto necesario para generar cada respuesta. Para una superficie especializada en relatos y roleplay adulto existe el proyecto independiente [Tinta Privada](https://github.com/Hefestion1989/tinta-privada), con almacenamiento separado.
 
 ## Estado actual
 
-La versión 0.7.0 incluye:
+La versión 0.7.1 incluye:
 
 - interfaz Avalonia/.NET 10 para Windows;
 - perfiles de motor separados para ejecución local u online;
+- configuración online guiada con presets para servidor propio, Venice AI y OpenRouter;
+- detección y selección de modelos informados por el servidor, sin copiar identificadores a mano;
+- comprobación segura de un perfil nuevo antes de activarlo, para no desplazar el motor anterior si la conexión falla;
 - conexión remota genérica mediante HTTPS y protocolo OpenAI-compatible, sin dependencia obligatoria de OpenAI ni de otro proveedor comercial;
 - tokens remotos opcionales protegidos por el Administrador de credenciales de Windows y nunca guardados en SQLite;
 - historial, memoria, personajes, universos e imágenes conservados localmente aun cuando la generación use un servidor remoto;
@@ -65,7 +68,7 @@ Las imágenes importadas se copian en `media\originals`; nunca se mueven ni se m
 
 Antes de actualizar una base anterior se crea una copia consistente en `backups`. La migración v0.6 agrega el retrato de identidad y conserva universos, personajes, conversaciones, recuerdos e imágenes existentes.
 
-La aplicación solo acepta endpoints HTTP en `localhost` o `127.0.0.1`. No contiene telemetría, cuentas ni sincronización.
+La aplicación sólo acepta endpoints HTTP en `localhost` o `127.0.0.1`; para conexiones remotas exige HTTPS. No contiene telemetría, cuentas ni sincronización.
 
 Las bases, copias de seguridad, registros, imágenes importadas y modelos no forman parte de este repositorio.
 
@@ -85,6 +88,15 @@ Las bases, copias de seguridad, registros, imágenes importadas y modelos no for
 5. Presioná **Guardar** y después **Iniciar y comprobar**.
 
 El iniciador `.bat` es opcional. Si querés arranque automático, guardá tu propio `run-model.bat` junto al ejecutable, dentro de `scripts`, o en `%LOCALAPPDATA%\PrivateCompanion`.
+
+## Motor online opcional
+
+1. Abrí **Configuración**, presioná **＋ Nuevo online** y elegí un preset.
+2. Usá el botón de ayuda para obtener tu propia clave en el servicio elegido, o escribí la URL HTTPS de un servidor propio.
+3. Pegá la clave y presioná **Buscar modelos disponibles**.
+4. Elegí el modelo y presioná **Guardar y comprobar**.
+
+La comprobación no reemplaza el motor que ya estaba activo si la nueva conexión falla. Los servicios incluidos son accesos directos de configuración, no afiliaciones ni recomendaciones permanentes; sus precios, políticas y disponibilidad dependen de cada operador.
 
 ## Desarrollo
 
