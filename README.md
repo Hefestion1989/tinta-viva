@@ -14,11 +14,16 @@ No hay una nube propia, cuentas ni telemetría. El modo local sólo acepta conex
 
 ## Estado actual
 
-La versión 0.7.2 incluye:
+La versión 0.8.0 incluye:
 
-[Ver las notas completas de Tinta Viva 0.7.2](docs/releases/0.7.2.md).
+[Ver las notas completas de Tinta Viva 0.8.0](docs/releases/0.8.0.md).
 
 - interfaz Avalonia/.NET 10 para Windows;
+- **Motor Tinta** como recorrido local recomendado: detecta LM Studio y los modelos ya instalados sin pedir URLs ni alias;
+- activación guiada de un único modelo local para evitar competencia silenciosa por la RAM;
+- recomendación automática de un modelo rápido entre los disponibles;
+- presets **Conversación ágil**, **Roleplay equilibrado** y **Narración extensa**, con diferencias reales de longitud, creatividad y composición del contexto;
+- configuración manual y conexiones online conservadas como alternativas;
 - perfiles de motor separados para ejecución local u online;
 - configuración online guiada con presets para servidor propio, Venice AI y OpenRouter;
 - asistente online de tres pasos con los campos técnicos relegados a una sección avanzada;
@@ -71,7 +76,7 @@ Los datos de uso se almacenan en:
 
 Las imágenes importadas se copian en `media\originals`; nunca se mueven ni se modifican los archivos elegidos por el usuario.
 
-Antes de actualizar una base anterior se crea una copia consistente en `backups`. El esquema actual es v7 y las migraciones conservan universos, personajes, identidades, conversaciones, recuerdos e imágenes existentes.
+Antes de actualizar una base anterior se crea una copia consistente en `backups`. El esquema actual es v8 y las migraciones conservan universos, personajes, identidades, conversaciones, recuerdos, imágenes y perfiles de motor existentes.
 
 La aplicación sólo acepta endpoints HTTP en `localhost` o `127.0.0.1`; para conexiones remotas exige HTTPS. No contiene telemetría, cuentas ni sincronización.
 
@@ -86,11 +91,12 @@ Las bases, copias de seguridad, registros, imágenes importadas y modelos no for
 
 ## Primer uso
 
-1. Iniciá el servidor local y cargá un modelo.
+1. Instalá LM Studio y descargá al menos un modelo de texto.
 2. Abrí **Configuración** en Tinta Viva.
-3. Elegí el proveedor y completá la URL local. Para LM Studio normalmente es `http://127.0.0.1:1234/v1`.
-4. Indicá el identificador del modelo o dejalo vacío para usar el primero informado por el servidor.
-5. Presioná **Guardar** y después **Iniciar y comprobar**.
+3. En **Motor Tinta**, elegí el modelo y la forma de escribir.
+4. Presioná **Activar Motor Tinta**. La aplicación inicia el servidor local, carga el modelo y configura la conexión.
+
+Los perfiles manuales para LM Studio, Ollama, llama.cpp y servidores compatibles siguen disponibles debajo del recorrido recomendado.
 
 El iniciador `.bat` es opcional. Si querés arranque automático, guardá tu propio `run-model.bat` junto al ejecutable, dentro de `scripts`, o en `%LOCALAPPDATA%\PrivateCompanion`.
 

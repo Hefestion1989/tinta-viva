@@ -43,7 +43,8 @@ public sealed class MigrationCompatibilityTests : IDisposable
         Assert.NotNull((await repository.GetCharacterAsync(characterId))!.UniverseId);
         Assert.Single(await repository.GetUniversesAsync());
         Assert.Equal(ProviderLocation.Local, (await repository.GetActiveProviderAsync()).Location);
-        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v7-*.db"));
+        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v8-*.db"));
+        Assert.Equal(NarrativeStyle.Roleplay, (await repository.GetActiveProviderAsync()).NarrativeStyle);
     }
 
     [Fact]
@@ -79,7 +80,7 @@ public sealed class MigrationCompatibilityTests : IDisposable
         Assert.Equal(1.75, stored.BackgroundZoom);
         var user = await repository.GetActiveUserPersonaAsync();
         Assert.Equal(string.Empty, user.PortraitRelativePath);
-        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v7-*.db"));
+        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v8-*.db"));
     }
 
     private const string LegacySchema = """

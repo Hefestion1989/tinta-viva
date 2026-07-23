@@ -12,7 +12,8 @@ public sealed class PromptComposer : IPromptComposer
         Conversation conversation,
         RelationshipState relationship,
         IReadOnlyList<Memory> memories,
-        IReadOnlyList<Message> recentMessages)
+        IReadOnlyList<Message> recentMessages,
+        NarrativeStyle narrativeStyle = NarrativeStyle.Roleplay)
     {
         character.Validate();
         userPersona.Validate();
@@ -103,11 +104,12 @@ public sealed class PromptComposer : IPromptComposer
 
         system.AppendLine();
         system.AppendLine($"Respondé de manera natural y situada como {character.Name}. Tomá iniciativa sólo sobre las acciones de {character.Name}, sin convertir cada respuesta en una explicación extensa.");
+        system.AppendLine(ResponseGuidance(narrativeStyle));
 
         var result = new List<ChatEntry> { new("system", system.ToString()) };
         result.AddRange(recentMessages
             .Where(m => m.Status == MessageStatus.Completed && m.Role is MessageRole.User or MessageRole.Assistant)
-            .TakeLast(24)
+            .TakeLast(HistoryTurns(narrativeStyle))
             .Select(m => new ChatEntry(m.Role == MessageRole.User ? "user" : "assistant", m.Content)));
         return result;
     }
@@ -151,6 +153,23 @@ public sealed class PromptComposer : IPromptComposer
     };
 
     private static string Pct(double value) => $"{Math.Round(value * 100)}%";
+    private static int HistoryTurns(NarrativeStyle style) => style switch
+    {
+        NarrativeStyle.Conversation => 18,
+        NarrativeStyle.Novel => 30,
+        _ => 24
+    };
+
+    private static string ResponseGuidance(NarrativeStyle style) => style switch
+    {
+        NarrativeStyle.Conversation =>
+            "MODO DE ESCRITURA: conversación ágil. Priorizá el diálogo y la reacción inmediata. Usá uno a tres párrafos salvo que la escena pida más desarrollo.",
+        NarrativeStyle.Novel =>
+            "MODO DE ESCRITURA: narración extensa. Desarrollá ambiente, percepción, gestos y ritmo con prosa cuidada, sin perder la voz del personaje ni decidir por el interlocutor.",
+        _ =>
+            "MODO DE ESCRITURA: roleplay equilibrado. Combiná diálogo, acciones y detalles sensoriales; hacé avanzar la escena sin alargar artificialmente cada turno."
+    };
+
     private static void AppendIf(StringBuilder builder, string label, string value)
     {
         if (!string.IsNullOrWhiteSpace(value)) builder.AppendLine($"{label}: {value.Trim()}");

@@ -10,6 +10,25 @@ public sealed record TextGenerationRequest(
     int? MaxOutputTokens = null);
 
 public sealed record ProviderProbe(bool IsAvailable, string Message, IReadOnlyList<string> Models);
+public sealed record LocalEngineModel(
+    string ModelKey,
+    string DisplayName,
+    string Parameters,
+    long SizeBytes,
+    string Quantization,
+    int MaxContextLength)
+{
+    public string DisplayLabel =>
+        $"{DisplayName} · {Parameters} · {SizeBytes / 1024d / 1024d / 1024d:0.0} GB";
+}
+
+public sealed record LocalEngineInventory(
+    bool IsAvailable,
+    string Message,
+    long TotalMemoryBytes,
+    IReadOnlyList<LocalEngineModel> Models);
+
+public sealed record LocalEngineActivationResult(bool IsSuccess, string Message);
 
 public interface ITextGenerationGateway
 {
@@ -23,6 +42,15 @@ public interface IProviderSecretStore
     Task<string?> GetAsync(Guid providerId, CancellationToken cancellationToken = default);
     Task SaveAsync(Guid providerId, string secret, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid providerId, CancellationToken cancellationToken = default);
+}
+
+public interface ILocalEngineManager
+{
+    Task<LocalEngineInventory> InspectAsync(CancellationToken cancellationToken = default);
+    Task<LocalEngineActivationResult> ActivateAsync(
+        string modelKey,
+        int contextLength,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ICompanionRepository
@@ -96,5 +124,6 @@ public interface IPromptComposer
         Conversation conversation,
         RelationshipState relationship,
         IReadOnlyList<Memory> memories,
-        IReadOnlyList<Message> recentMessages);
+        IReadOnlyList<Message> recentMessages,
+        NarrativeStyle narrativeStyle = NarrativeStyle.Roleplay);
 }

@@ -19,7 +19,8 @@ namespace PrivateCompanion.Desktop.ViewModels;
 public partial class MainViewModel(
     CompanionApplicationService application,
     IMediaLibrary mediaLibrary,
-    IProviderSecretStore providerSecretStore) : ViewModelBase
+    IProviderSecretStore providerSecretStore,
+    ILocalEngineManager localEngineManager) : ViewModelBase
 {
     private readonly ICompanionRepository _repository = application.Repository;
     private readonly IMediaLibrary _mediaLibrary = mediaLibrary;
@@ -42,7 +43,9 @@ public partial class MainViewModel(
     public ObservableCollection<GalleryItemViewModel> Gallery { get; } = [];
     public ObservableCollection<ProviderProfile> Providers { get; } = [];
     public ObservableCollection<string> DetectedProviderModels { get; } = [];
+    public ObservableCollection<LocalEngineModel> LocalEngineModels { get; } = [];
     public IReadOnlyList<ProviderPreset> RemoteProviderPresets { get; } = ProviderPresetCatalog.Online;
+    public IReadOnlyList<NarrativePreset> NarrativePresets { get; } = NarrativePresetCatalog.All;
     public IReadOnlyList<MemoryKind> MemoryKinds { get; } = Enum.GetValues<MemoryKind>();
     public IReadOnlyList<ProviderKind> ProviderKinds { get; } = Enum.GetValues<ProviderKind>();
     public IReadOnlyList<ProviderLocation> ProviderLocations { get; } = Enum.GetValues<ProviderLocation>();
@@ -142,6 +145,16 @@ public partial class MainViewModel(
     [ObservableProperty] public partial string ActiveProviderText { get; set; } = "Cargando motor activo…";
     [ObservableProperty] public partial double ProviderTemperature { get; set; } = 0.85;
     [ObservableProperty] public partial int ProviderMaxTokens { get; set; } = 512;
+    [ObservableProperty]
+    public partial NarrativePreset SelectedNarrativePreset { get; set; } =
+        NarrativePresetCatalog.For(NarrativeStyle.Roleplay);
+    [ObservableProperty] public partial LocalEngineModel? SelectedLocalEngineModel { get; set; }
+    [ObservableProperty]
+    public partial string MotorTintaStatus { get; set; } =
+        "Presioná «Buscar modelos locales» para preparar Motor Tinta.";
+    [ObservableProperty] public partial string LocalDeviceSummary { get; set; } = "La revisión se hace solamente en este equipo.";
+    [ObservableProperty] public partial bool IsPreparingMotorTinta { get; set; }
+    [ObservableProperty] public partial bool IsMotorTintaAvailable { get; set; }
 
     [ObservableProperty] public partial GalleryItemViewModel? SelectedGalleryItem { get; set; }
     [ObservableProperty] public partial GalleryItemViewModel? AlbumItem { get; set; }
@@ -168,6 +181,11 @@ public partial class MainViewModel(
     public bool IsLocalProvider => SelectedProviderLocation == ProviderLocation.Local;
     public bool IsRemoteProvider => SelectedProviderLocation == ProviderLocation.Remote;
     public bool HasDetectedProviderModels => DetectedProviderModels.Count > 0;
+    public bool HasLocalEngineModels => LocalEngineModels.Count > 0;
+    public bool CanActivateMotorTinta => SelectedLocalEngineModel is not null && !IsPreparingMotorTinta;
+    public string SelectedLocalModelDetail => SelectedLocalEngineModel is null
+        ? "Elegí un modelo instalado."
+        : $"{SelectedLocalEngineModel.DisplayName} ocupa {SelectedLocalEngineModel.SizeBytes / 1024d / 1024d / 1024d:0.0} GB en disco. Tinta Viva lo cargará como único modelo activo para evitar competencia por la memoria.";
     public bool HasProviderHelpLink => !string.IsNullOrWhiteSpace(SelectedRemoteProviderPreset?.HelpUrl);
     public bool IsCustomRemoteProvider => IsRemoteProvider && SelectedRemoteProviderPreset?.Id == "custom";
     public bool IsHostedRemoteProvider => IsRemoteProvider && !IsCustomRemoteProvider;
@@ -285,6 +303,23 @@ public partial class MainViewModel(
     {
         if (!string.IsNullOrWhiteSpace(value)) ProviderModel = value;
     }
+
+    partial void OnSelectedNarrativePresetChanged(NarrativePreset value)
+    {
+        if (_isLoadingProviderFields || value is null) return;
+        ProviderTemperature = value.Temperature;
+        ProviderMaxTokens = value.MaxOutputTokens;
+        OnPropertyChanged(nameof(SelectedLocalModelDetail));
+    }
+
+    partial void OnSelectedLocalEngineModelChanged(LocalEngineModel? value)
+    {
+        OnPropertyChanged(nameof(CanActivateMotorTinta));
+        OnPropertyChanged(nameof(SelectedLocalModelDetail));
+    }
+
+    partial void OnIsPreparingMotorTintaChanged(bool value) =>
+        OnPropertyChanged(nameof(CanActivateMotorTinta));
 
     partial void OnSelectedGalleryItemChanged(GalleryItemViewModel? value)
     {
@@ -468,12 +503,29 @@ public partial class MainViewModel(
             {
                 Id = _editingCharacterId == Guid.Empty ? Guid.NewGuid() : _editingCharacterId,
                 UniverseId = SelectedUniverse?.Id,
-                Name = CharacterName.Trim(), Age = CharacterAge, Appearance = Appearance, Backstory = Backstory,
-                PersonalityNotes = PersonalityNotes, Profession = Profession, Likes = Likes, SpeechStyle = SpeechStyle,
-                Goals = Goals, AffectiveStyle = AffectiveStyle, RomanticStyle = RomanticStyle, HumorStyle = HumorStyle,
-                Language = CharacterLanguage, Romanticism = Romanticism, Extroversion = Extroversion, Humor = Humor,
-                Calm = Calm, Confidence = Confidence, Affection = Affection, Independence = Independence,
-                Initiative = Initiative, Formality = Formality, EmotionalIntensity = EmotionalIntensity
+                Name = CharacterName.Trim(),
+                Age = CharacterAge,
+                Appearance = Appearance,
+                Backstory = Backstory,
+                PersonalityNotes = PersonalityNotes,
+                Profession = Profession,
+                Likes = Likes,
+                SpeechStyle = SpeechStyle,
+                Goals = Goals,
+                AffectiveStyle = AffectiveStyle,
+                RomanticStyle = RomanticStyle,
+                HumorStyle = HumorStyle,
+                Language = CharacterLanguage,
+                Romanticism = Romanticism,
+                Extroversion = Extroversion,
+                Humor = Humor,
+                Calm = Calm,
+                Confidence = Confidence,
+                Affection = Affection,
+                Independence = Independence,
+                Initiative = Initiative,
+                Formality = Formality,
+                EmotionalIntensity = EmotionalIntensity
             };
             await _repository.SaveCharacterAsync(character);
             await LoadCharactersAsync(character.Id);
@@ -612,6 +664,100 @@ public partial class MainViewModel(
         catch (Exception ex)
         {
             ProviderStatus = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DiscoverMotorTintaAsync()
+    {
+        if (IsPreparingMotorTinta) return;
+        IsPreparingMotorTinta = true;
+        try
+        {
+            var inventory = await localEngineManager.InspectAsync();
+            IsMotorTintaAvailable = inventory.IsAvailable;
+            LocalEngineModels.Clear();
+            foreach (var model in inventory.Models) LocalEngineModels.Add(model);
+            OnPropertyChanged(nameof(HasLocalEngineModels));
+
+            var memory = inventory.TotalMemoryBytes > 0
+                ? $"{inventory.TotalMemoryBytes / 1024d / 1024d / 1024d:0} GB de RAM"
+                : "memoria del equipo sin identificar";
+            LocalDeviceSummary = $"{memory} · {inventory.Models.Count} modelos de texto instalados";
+            MotorTintaStatus = inventory.Message;
+            SelectedLocalEngineModel = RecommendLocalModel(inventory.Models);
+        }
+        catch (Exception ex)
+        {
+            IsMotorTintaAvailable = false;
+            MotorTintaStatus = $"No pude revisar el motor local: {ex.Message}";
+        }
+        finally
+        {
+            IsPreparingMotorTinta = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ActivateMotorTintaAsync()
+    {
+        if (SelectedLocalEngineModel is null || IsPreparingMotorTinta) return;
+        IsPreparingMotorTinta = true;
+        MotorTintaStatus = $"Preparando {SelectedLocalEngineModel.DisplayName}…";
+        try
+        {
+            var preset = SelectedNarrativePreset;
+            var context = Math.Min(
+                preset.ContextBudget,
+                SelectedLocalEngineModel.MaxContextLength > 0
+                    ? SelectedLocalEngineModel.MaxContextLength
+                    : preset.ContextBudget);
+            var result = await localEngineManager.ActivateAsync(
+                SelectedLocalEngineModel.ModelKey,
+                context);
+            if (!result.IsSuccess)
+            {
+                MotorTintaStatus = result.Message;
+                return;
+            }
+
+            var provider = Providers.FirstOrDefault(x =>
+                    x.Location == ProviderLocation.Local &&
+                    x.Name.StartsWith("Motor Tinta", StringComparison.OrdinalIgnoreCase))
+                ?? new ProviderProfile();
+            provider.Name = $"Motor Tinta · {SelectedLocalEngineModel.DisplayName}";
+            provider.Kind = ProviderKind.LMStudio;
+            provider.Location = ProviderLocation.Local;
+            provider.BaseUrl = "http://127.0.0.1:1234/v1";
+            provider.Model = "tinta-viva";
+            provider.Temperature = preset.Temperature;
+            provider.TopP = 0.95;
+            provider.MaxOutputTokens = preset.MaxOutputTokens;
+            provider.ContextBudget = context;
+            provider.NarrativeStyle = preset.Style;
+            provider.AutoStart = false;
+            provider.LaunchCommand = string.Empty;
+
+            var probe = await application.ProbeProviderAsync(provider, false);
+            if (!probe.IsAvailable)
+            {
+                MotorTintaStatus = $"{result.Message} Sin embargo, la comprobación final falló: {probe.Message}";
+                return;
+            }
+
+            _provider = provider;
+            await PersistProviderAsync(provider);
+            MotorTintaStatus =
+                $"{result.Message} Perfil «{preset.Label}» aplicado. Ya podés volver a la conversación.";
+            ProviderStatus = $"Motor Tinta conectado · {SelectedLocalEngineModel.DisplayName}";
+        }
+        catch (Exception ex)
+        {
+            MotorTintaStatus = $"No pude activar Motor Tinta: {ex.Message}";
+        }
+        finally
+        {
+            IsPreparingMotorTinta = false;
         }
     }
 
@@ -1072,6 +1218,7 @@ public partial class MainViewModel(
         ProviderName = provider.Name; SelectedProviderKind = provider.Kind; ProviderBaseUrl = provider.BaseUrl;
         ProviderModel = provider.Model; ProviderLaunchCommand = provider.LaunchCommand; ProviderAutoStart = provider.AutoStart;
         ProviderTemperature = provider.Temperature; ProviderMaxTokens = provider.MaxOutputTokens;
+        SelectedNarrativePreset = NarrativePresetCatalog.For(provider.NarrativeStyle);
         SelectedProviderLocation = provider.Location;
         ProviderApiToken = string.Empty;
         HasStoredProviderToken = hasStoredToken;
@@ -1112,6 +1259,8 @@ public partial class MainViewModel(
         provider.AutoStart = IsLocalProvider && ProviderAutoStart;
         provider.Temperature = ProviderTemperature;
         provider.MaxOutputTokens = ProviderMaxTokens;
+        provider.NarrativeStyle = SelectedNarrativePreset.Style;
+        provider.ContextBudget = SelectedNarrativePreset.ContextBudget;
         _provider = provider;
         return true;
     }
@@ -1163,6 +1312,23 @@ public partial class MainViewModel(
             ? "Motor local guardado y activado."
             : "Motor online guardado y activado. El token permanece protegido por Windows.";
     }
+
+    private static LocalEngineModel? RecommendLocalModel(IReadOnlyList<LocalEngineModel> models)
+    {
+        if (models.Count == 0) return null;
+        return models
+            .OrderByDescending(model =>
+                Score(model.DisplayName, "DarkIdol", 80) +
+                Score(model.DisplayName, "Lexi", 70) +
+                Score(model.Parameters, "8B", 45) +
+                Score(model.DisplayName, "VelvetCafe", 35) +
+                Score(model.DisplayName, "Rocinante", 30))
+            .ThenBy(model => model.SizeBytes)
+            .First();
+    }
+
+    private static int Score(string value, string candidate, int score) =>
+        value.Contains(candidate, StringComparison.OrdinalIgnoreCase) ? score : 0;
 }
 
 public sealed record UniverseListItem(Guid Id, string Name);

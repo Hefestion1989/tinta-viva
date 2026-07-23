@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -22,20 +24,31 @@ public partial class App : Avalonia.Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var factory = new CompanionDbContextFactory(CompanionPaths.DatabasePath);
-            var repository = new CompanionRepository(factory, CompanionPaths.FindDefaultModelLauncher());
-            var providerSecretStore = new WindowsCredentialProviderSecretStore();
-            var gateway = new OpenAiCompatibleTextGateway(providerSecretStore);
-            var service = new CompanionApplicationService(repository, gateway, new PromptComposer());
-            var mediaLibrary = new LocalMediaLibrary(repository, CompanionPaths.DataDirectory);
-            var viewModel = new MainViewModel(service, mediaLibrary, providerSecretStore);
-            await viewModel.InitializeAsync();
-
-            desktop.MainWindow = new MainWindow
+            try
             {
-                DataContext = viewModel,
-            };
-            desktop.Exit += (_, _) => gateway.Dispose();
+                var factory = new CompanionDbContextFactory(CompanionPaths.DatabasePath);
+                var repository = new CompanionRepository(factory, CompanionPaths.FindDefaultModelLauncher());
+                var providerSecretStore = new WindowsCredentialProviderSecretStore();
+                var gateway = new OpenAiCompatibleTextGateway(providerSecretStore);
+                var localEngineManager = new LmStudioLocalEngineManager();
+                var service = new CompanionApplicationService(repository, gateway, new PromptComposer());
+                var mediaLibrary = new LocalMediaLibrary(repository, CompanionPaths.DataDirectory);
+                var viewModel = new MainViewModel(service, mediaLibrary, providerSecretStore, localEngineManager);
+                await viewModel.InitializeAsync();
+
+                desktop.MainWindow = new MainWindow
+                {
+                    DataContext = viewModel,
+                };
+                desktop.MainWindow.Show();
+                desktop.Exit += (_, _) => gateway.Dispose();
+            }
+            catch (Exception ex)
+            {
+                var logPath = Path.Combine(CompanionPaths.DataDirectory, "logs", "startup-error.log");
+                await File.WriteAllTextAsync(logPath, $"{DateTimeOffset.Now:O}{Environment.NewLine}{ex}");
+                desktop.Shutdown(-1);
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

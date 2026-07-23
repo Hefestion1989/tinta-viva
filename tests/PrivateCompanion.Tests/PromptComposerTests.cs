@@ -103,4 +103,37 @@ public sealed class PromptComposerTests
         Assert.Contains("No adoptes como propios", prompt[0].Content);
         Assert.Contains("Esta ficha describe a Dami, no a Lucas", prompt[0].Content);
     }
+
+    [Fact]
+    public void Narrative_presets_change_guidance_and_history_depth()
+    {
+        var character = new Character { Name = "Luna", Age = 29 };
+        var userPersona = new UserPersona { Name = "Dami", Age = 30 };
+        var conversation = new Conversation { UserPersonaId = userPersona.Id };
+        var relationship = new RelationshipState
+        {
+            CharacterId = character.Id,
+            UserPersonaId = userPersona.Id
+        };
+        var messages = Enumerable.Range(1, 36)
+            .Select(index => new Message
+            {
+                Role = index % 2 == 0 ? MessageRole.Assistant : MessageRole.User,
+                Status = MessageStatus.Completed,
+                Content = $"Turno {index}"
+            })
+            .ToList();
+
+        var agile = new PromptComposer().Compose(
+            null, character, userPersona, conversation, relationship, [], messages,
+            NarrativeStyle.Conversation);
+        var novel = new PromptComposer().Compose(
+            null, character, userPersona, conversation, relationship, [], messages,
+            NarrativeStyle.Novel);
+
+        Assert.Contains("conversación ágil", agile[0].Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("narración extensa", novel[0].Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(19, agile.Count);
+        Assert.Equal(31, novel.Count);
+    }
 }
