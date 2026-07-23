@@ -15,7 +15,10 @@ using PrivateCompanion.Domain;
 
 namespace PrivateCompanion.Desktop.ViewModels;
 
-public partial class MainViewModel(CompanionApplicationService application, IMediaLibrary mediaLibrary) : ViewModelBase
+public partial class MainViewModel(
+    CompanionApplicationService application,
+    IMediaLibrary mediaLibrary,
+    IProviderSecretStore providerSecretStore) : ViewModelBase
 {
     private readonly ICompanionRepository _repository = application.Repository;
     private readonly IMediaLibrary _mediaLibrary = mediaLibrary;
@@ -35,8 +38,10 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public ObservableCollection<MemoryListItem> Memories { get; } = [];
     public ObservableCollection<DiaryListItem> Diary { get; } = [];
     public ObservableCollection<GalleryItemViewModel> Gallery { get; } = [];
+    public ObservableCollection<ProviderProfile> Providers { get; } = [];
     public IReadOnlyList<MemoryKind> MemoryKinds { get; } = Enum.GetValues<MemoryKind>();
     public IReadOnlyList<ProviderKind> ProviderKinds { get; } = Enum.GetValues<ProviderKind>();
+    public IReadOnlyList<ProviderLocation> ProviderLocations { get; } = Enum.GetValues<ProviderLocation>();
     public IReadOnlyList<SceneMode> SceneModes { get; } = Enum.GetValues<SceneMode>();
 
     [ObservableProperty] public partial string ActiveSection { get; set; } = "Inicio";
@@ -115,12 +120,16 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial MemoryKind SelectedMemoryKind { get; set; } = MemoryKind.Personal;
     [ObservableProperty] public partial double NewMemoryImportance { get; set; } = 0.65;
 
+    [ObservableProperty] public partial ProviderProfile? SelectedProviderProfile { get; set; }
     [ObservableProperty] public partial ProviderKind SelectedProviderKind { get; set; } = ProviderKind.LlamaCpp;
+    [ObservableProperty] public partial ProviderLocation SelectedProviderLocation { get; set; } = ProviderLocation.Local;
     [ObservableProperty] public partial string ProviderName { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProviderBaseUrl { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProviderModel { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProviderLaunchCommand { get; set; } = string.Empty;
     [ObservableProperty] public partial bool ProviderAutoStart { get; set; }
+    [ObservableProperty] public partial string ProviderApiToken { get; set; } = string.Empty;
+    [ObservableProperty] public partial bool HasStoredProviderToken { get; set; }
     [ObservableProperty] public partial double ProviderTemperature { get; set; } = 0.85;
     [ObservableProperty] public partial int ProviderMaxTokens { get; set; } = 512;
 
@@ -146,6 +155,11 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public bool IsGallery => ActiveSection == "Galería";
     public bool IsUsers => ActiveSection == "Usuarios";
     public bool IsSettings => ActiveSection == "Configuración";
+    public bool IsLocalProvider => SelectedProviderLocation == ProviderLocation.Local;
+    public bool IsRemoteProvider => SelectedProviderLocation == ProviderLocation.Remote;
+    public string ProviderPrivacyText => IsLocalProvider
+        ? "Modo local: prompts, respuestas y datos permanecen en este equipo."
+        : "Modo online: los chats se guardan localmente, pero el contexto necesario para responder se envía al servidor remoto.";
     public bool HasGalleryItems => Gallery.Count > 0;
     public bool HasSelectedCharacter => SelectedCharacter is not null;
     public bool HasSelectedConversation => SelectedConversation is not null;
@@ -170,7 +184,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         await LoadUserPersonasAsync();
         await LoadUniversesAsync();
         await LoadCharactersAsync(preserveNoSelection: true);
-        await LoadProviderAsync();
+        await LoadProvidersAsync();
         _isInitializing = false;
         if (SelectedCharacter is not null && SelectedUserPersona is not null)
             await LoadCharacterWorkspaceAsync(SelectedCharacter.Id);
@@ -210,6 +224,19 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     {
         OnPropertyChanged(nameof(HasSelectedConversation));
         if (value is not null) _ = LoadConversationAsync(value.Id);
+    }
+
+    partial void OnSelectedProviderProfileChanged(ProviderProfile? value)
+    {
+        if (value is not null) _ = LoadProviderFieldsAsync(value);
+    }
+
+    partial void OnSelectedProviderLocationChanged(ProviderLocation value)
+    {
+        if (value == ProviderLocation.Remote) ProviderAutoStart = false;
+        OnPropertyChanged(nameof(IsLocalProvider));
+        OnPropertyChanged(nameof(IsRemoteProvider));
+        OnPropertyChanged(nameof(ProviderPrivacyText));
     }
 
     partial void OnSelectedGalleryItemChanged(GalleryItemViewModel? value)
@@ -532,11 +559,62 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     {
         if (_provider is null) return;
         _provider.Name = ProviderName.Trim(); _provider.Kind = SelectedProviderKind;
+        _provider.Location = SelectedProviderLocation;
         _provider.BaseUrl = ProviderBaseUrl.Trim(); _provider.Model = ProviderModel.Trim();
-        _provider.LaunchCommand = ProviderLaunchCommand.Trim(); _provider.AutoStart = ProviderAutoStart;
+        _provider.LaunchCommand = IsLocalProvider ? ProviderLaunchCommand.Trim() : string.Empty;
+        _provider.AutoStart = IsLocalProvider && ProviderAutoStart;
         _provider.Temperature = ProviderTemperature; _provider.MaxOutputTokens = ProviderMaxTokens;
         await _repository.SaveProviderAsync(_provider);
-        StatusText = "Configuración del motor guardada localmente.";
+        if (!string.IsNullOrWhiteSpace(ProviderApiToken))
+        {
+            await providerSecretStore.SaveAsync(_provider.Id, ProviderApiToken);
+            ProviderApiToken = string.Empty;
+        }
+        await LoadProvidersAsync(_provider.Id);
+        StatusText = IsLocalProvider
+            ? "Motor local guardado y activado."
+            : "Motor online guardado y activado. El token permanece protegido por Windows.";
+    }
+
+    [RelayCommand]
+    private void NewLocalProvider()
+    {
+        _provider = new ProviderProfile
+        {
+            Name = "Motor local",
+            Kind = ProviderKind.LMStudio,
+            Location = ProviderLocation.Local,
+            BaseUrl = "http://127.0.0.1:1234/v1"
+        };
+        SelectedProviderProfile = null;
+        LoadProviderFields(_provider, false);
+        StatusText = "Configurá el nuevo motor local y presioná «Guardar y usar».";
+    }
+
+    [RelayCommand]
+    private void NewRemoteProvider()
+    {
+        _provider = new ProviderProfile
+        {
+            Name = "Motor online",
+            Kind = ProviderKind.OpenAICompatible,
+            Location = ProviderLocation.Remote,
+            BaseUrl = "https://",
+            AutoStart = false
+        };
+        SelectedProviderProfile = null;
+        LoadProviderFields(_provider, false);
+        StatusText = "Configurá un servidor independiente o autohospedado compatible. No depende de OpenAI.";
+    }
+
+    [RelayCommand]
+    private async Task DeleteProviderTokenAsync()
+    {
+        if (_provider is null) return;
+        await providerSecretStore.DeleteAsync(_provider.Id);
+        ProviderApiToken = string.Empty;
+        HasStoredProviderToken = false;
+        StatusText = "Token protegido eliminado. El perfil del motor sigue guardado.";
     }
 
     [RelayCommand]
@@ -865,12 +943,30 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         catch { return null; }
     }
 
-    private async Task LoadProviderAsync()
+    private async Task LoadProvidersAsync(Guid? selectId = null)
     {
-        _provider = await _repository.GetActiveProviderAsync();
-        ProviderName = _provider.Name; SelectedProviderKind = _provider.Kind; ProviderBaseUrl = _provider.BaseUrl;
-        ProviderModel = _provider.Model; ProviderLaunchCommand = _provider.LaunchCommand; ProviderAutoStart = _provider.AutoStart;
-        ProviderTemperature = _provider.Temperature; ProviderMaxTokens = _provider.MaxOutputTokens;
+        var items = await _repository.GetProvidersAsync();
+        var selected = selectId ?? items.FirstOrDefault(x => x.IsActive)?.Id ?? _provider?.Id;
+        Providers.Clear();
+        foreach (var item in items) Providers.Add(item);
+        SelectedProviderProfile = Providers.FirstOrDefault(x => x.Id == selected) ?? Providers.FirstOrDefault();
+        if (SelectedProviderProfile is not null) await LoadProviderFieldsAsync(SelectedProviderProfile);
+    }
+
+    private async Task LoadProviderFieldsAsync(ProviderProfile provider)
+    {
+        _provider = provider;
+        LoadProviderFields(provider, await providerSecretStore.ExistsAsync(provider.Id));
+    }
+
+    private void LoadProviderFields(ProviderProfile provider, bool hasStoredToken)
+    {
+        ProviderName = provider.Name; SelectedProviderKind = provider.Kind; ProviderBaseUrl = provider.BaseUrl;
+        ProviderModel = provider.Model; ProviderLaunchCommand = provider.LaunchCommand; ProviderAutoStart = provider.AutoStart;
+        ProviderTemperature = provider.Temperature; ProviderMaxTokens = provider.MaxOutputTokens;
+        SelectedProviderLocation = provider.Location;
+        ProviderApiToken = string.Empty;
+        HasStoredProviderToken = hasStoredToken;
     }
 }
 

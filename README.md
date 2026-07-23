@@ -14,9 +14,13 @@ No hay una nube propia, cuentas ni telemetría. La aplicación solo acepta conex
 
 ## Estado actual
 
-La versión 0.6.2 incluye:
+La versión 0.7.0 incluye:
 
 - interfaz Avalonia/.NET 10 para Windows;
+- perfiles de motor separados para ejecución local u online;
+- conexión remota genérica mediante HTTPS y protocolo OpenAI-compatible, sin dependencia obligatoria de OpenAI ni de otro proveedor comercial;
+- tokens remotos opcionales protegidos por el Administrador de credenciales de Windows y nunca guardados en SQLite;
+- historial, memoria, personajes, universos e imágenes conservados localmente aun cuando la generación use un servidor remoto;
 - portada neutra para elegir identidad, personaje y conversación antes de entrar al chat;
 - selección explícita del personaje, con número de revisión y fecha de última edición;
 - separación reforzada de roles para que el modelo no adopte la identidad, acciones o pertenencias de la persona usuaria;

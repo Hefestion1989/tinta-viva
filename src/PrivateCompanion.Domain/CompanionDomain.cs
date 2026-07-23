@@ -8,6 +8,7 @@ public enum SceneMode { Canonical, Sandbox }
 public enum MemoryKind { Episodic, Personal, Emotional, Identity }
 public enum MemoryStatus { Candidate, Confirmed, Rejected, Superseded }
 public enum ProviderKind { LMStudio, Ollama, LlamaCpp, OpenAICompatible }
+public enum ProviderLocation { Local, Remote }
 
 public sealed class StoryUniverse
 {
@@ -187,6 +188,7 @@ public sealed class ProviderProfile
     public Guid Id { get; set; } = Guid.NewGuid();
     [MaxLength(100)] public string Name { get; set; } = "Motor local";
     public ProviderKind Kind { get; set; } = ProviderKind.LMStudio;
+    public ProviderLocation Location { get; set; } = ProviderLocation.Local;
     [MaxLength(500)] public string BaseUrl { get; set; } = "http://127.0.0.1:1234/v1";
     [MaxLength(300)] public string Model { get; set; } = string.Empty;
     public double Temperature { get; set; } = 0.85;

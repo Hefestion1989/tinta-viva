@@ -10,8 +10,18 @@ namespace PrivateCompanion.Infrastructure.Providers;
 
 public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDisposable
 {
-    private readonly HttpClient _client = new() { Timeout = Timeout.InfiniteTimeSpan };
+    private readonly IProviderSecretStore _secretStore;
+    private readonly HttpClient _client;
     private Process? _startedProcess;
+
+    public OpenAiCompatibleTextGateway(IProviderSecretStore secretStore, HttpMessageHandler? handler = null)
+    {
+        _secretStore = secretStore;
+        _client = handler is null
+            ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+            : new HttpClient(handler);
+        _client.Timeout = Timeout.InfiniteTimeSpan;
+    }
 
     public async IAsyncEnumerable<string> StreamAsync(
         TextGenerationRequest request,
@@ -41,11 +51,12 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
         };
         message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        await AddAuthorizationAsync(message, request.Provider, cancellationToken);
         using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"El motor local devolvió {(int)response.StatusCode}: {Trim(error, 500)}");
+            throw new InvalidOperationException($"El motor devolvió {(int)response.StatusCode}: {Trim(error, 500)}");
         }
 
         var mediaType = response.Content.Headers.ContentType?.MediaType;
@@ -76,9 +87,9 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
         bool allowAutoStart,
         CancellationToken cancellationToken = default)
     {
-        ValidateLocalEndpoint(provider.BaseUrl);
+        ValidateEndpoint(provider);
         var first = await TryProbeAsync(provider, cancellationToken);
-        if (first.IsAvailable || !allowAutoStart || !provider.AutoStart || string.IsNullOrWhiteSpace(provider.LaunchCommand)) return first;
+        if (first.IsAvailable || provider.Location == ProviderLocation.Remote || !allowAutoStart || !provider.AutoStart || string.IsNullOrWhiteSpace(provider.LaunchCommand)) return first;
 
         if (!TryLaunch(provider.LaunchCommand, out var launchError))
             return new ProviderProbe(false, launchError, []);
@@ -98,21 +109,27 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(4));
-            using var response = await _client.GetAsync(BuildEndpoint(provider.BaseUrl, "models"), timeout.Token);
+            using var request = new HttpRequestMessage(HttpMethod.Get, BuildEndpoint(provider.BaseUrl, "models"));
+            await AddAuthorizationAsync(request, provider, timeout.Token);
+            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token);
             var body = await response.Content.ReadAsStringAsync(timeout.Token);
             if (!response.IsSuccessStatusCode)
                 return new ProviderProbe(false, $"Motor no disponible: HTTP {(int)response.StatusCode}.", []);
 
             var models = ParseModels(body);
-            return new ProviderProbe(true, "Conectado al motor local.", models);
+            var location = provider.Location == ProviderLocation.Local ? "local" : "remoto";
+            return new ProviderProbe(true, $"Conectado al motor {location}.", models);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new ProviderProbe(false, "El motor local no respondió a tiempo.", []);
+            return new ProviderProbe(false, "El motor no respondió a tiempo.", []);
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException)
         {
-            return new ProviderProbe(false, "Motor local desconectado. Podés iniciarlo desde Configuración o enviar un mensaje para el arranque automático.", []);
+            var hint = provider.Location == ProviderLocation.Local
+                ? "Podés iniciarlo desde Configuración o enviar un mensaje para el arranque automático."
+                : "Revisá la URL HTTPS, el token y el estado del servidor remoto.";
+            return new ProviderProbe(false, $"Motor desconectado. {hint}", []);
         }
     }
 
@@ -147,12 +164,21 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
 
     private static Uri BuildEndpoint(string baseUrl, string route) => new($"{baseUrl.TrimEnd('/')}/{route}");
 
-    private static void ValidateLocalEndpoint(string baseUrl)
+    internal static void ValidateEndpoint(ProviderProfile provider)
     {
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+        if (!Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
             throw new InvalidOperationException("La URL del motor no es válida.");
-        if (!uri.IsLoopback)
-            throw new InvalidOperationException("Por privacidad, esta versión solo admite motores en localhost/127.0.0.1.");
+        if (provider.Location == ProviderLocation.Local && !uri.IsLoopback)
+            throw new InvalidOperationException("Un perfil local solo admite localhost/127.0.0.1.");
+        if (provider.Location == ProviderLocation.Remote && uri.Scheme != "https")
+            throw new InvalidOperationException("Un motor remoto necesita una URL HTTPS para proteger el contexto enviado.");
+    }
+
+    private async Task AddAuthorizationAsync(HttpRequestMessage message, ProviderProfile provider, CancellationToken cancellationToken)
+    {
+        var secret = await _secretStore.GetAsync(provider.Id, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(secret))
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
     }
 
     private static IReadOnlyList<string> ParseModels(string json)
