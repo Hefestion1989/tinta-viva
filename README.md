@@ -16,6 +16,8 @@ No hay una nube propia, cuentas ni telemetría. El modo local sólo acepta conex
 
 La versión 0.7.2 incluye:
 
+[Ver las notas completas de Tinta Viva 0.7.2](docs/releases/0.7.2.md).
+
 - interfaz Avalonia/.NET 10 para Windows;
 - perfiles de motor separados para ejecución local u online;
 - configuración online guiada con presets para servidor propio, Venice AI y OpenRouter;
