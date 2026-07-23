@@ -14,9 +14,12 @@ No hay una nube propia, cuentas ni telemetría. La aplicación solo acepta conex
 
 ## Estado actual
 
-La versión 0.6.1 incluye:
+La versión 0.6.2 incluye:
 
 - interfaz Avalonia/.NET 10 para Windows;
+- portada neutra para elegir identidad, personaje y conversación antes de entrar al chat;
+- selección explícita del personaje, con número de revisión y fecha de última edición;
+- separación reforzada de roles para que el modelo no adopte la identidad, acciones o pertenencias de la persona usuaria;
 - personajes editables y perfiles versionados;
 - acceso directo para editar al personaje activo y agregarle imágenes desde la barra lateral;
 - diez rasgos de personalidad configurables;

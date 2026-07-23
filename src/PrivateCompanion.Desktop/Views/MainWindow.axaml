@@ -13,7 +13,8 @@
     <Grid ColumnDefinitions="220,*,280" Background="#0B0D12" ClipToBounds="True">
         <!-- Navegación y personajes -->
         <Border Grid.Column="0" Background="#11141B" BorderBrush="#252936" BorderThickness="0,0,1,0" Padding="14" ClipToBounds="True">
-            <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                 <StackPanel Margin="4,4,4,18">
                     <TextBlock Text="TINTA" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" LetterSpacing="2" />
                     <TextBlock Text="Viva" FontSize="25" FontWeight="SemiBold" />
@@ -21,6 +22,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,16">
+                    <Button Classes="nav" Content="⌂  Inicio" Command="{Binding NavigateCommand}" CommandParameter="Inicio" />
                     <Button Classes="nav" Content="●  Conversación" Command="{Binding NavigateCommand}" CommandParameter="Chat" />
                     <Button Classes="nav" Content="◆  Universo y canon" Command="{Binding NavigateCommand}" CommandParameter="Universo" />
                     <Button Classes="nav" Content="♥  Perfil y personalidad" Command="{Binding NavigateCommand}" CommandParameter="Perfil" />
@@ -96,11 +98,80 @@
                         <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="11" Foreground="#ABB0BF" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
-            </Grid>
+              </Grid>
+            </ScrollViewer>
         </Border>
 
         <!-- Contenido principal -->
         <Grid Grid.Column="1" Background="#0E1117" ClipToBounds="True">
+            <!-- Inicio -->
+            <Grid IsVisible="{Binding IsHome}">
+                <ScrollViewer Padding="34,28" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Center" Spacing="20">
+                        <StackPanel Spacing="7" Margin="0,10,0,4">
+                            <TextBlock Text="Tu espacio de escritura" FontSize="30" FontWeight="SemiBold" />
+                            <TextBlock Text="Elegí quién sos, con quién querés escribir y qué escena abrir. Nada empieza ni se envía hasta que vos lo decidas."
+                                       TextWrapping="Wrap" FontSize="14" Foreground="#A7ADBB" LineHeight="21" />
+                        </StackPanel>
+
+                        <Border Background="#14221B" BorderBrush="#2F7D57" BorderThickness="1" CornerRadius="12" Padding="15">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="●" Foreground="#63D69A" FontSize="14" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Privado y local" FontWeight="SemiBold" Foreground="#A7E7C2" />
+                                    <TextBlock Text="Perfiles, escenas, conversaciones e imágenes permanecen en este equipo."
+                                               TextWrapping="Wrap" FontSize="12" Foreground="#9BC9AE" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#171A22" BorderBrush="#2D3240" BorderThickness="1" CornerRadius="14" Padding="20">
+                            <StackPanel Spacing="17">
+                                <StackPanel Spacing="7">
+                                    <TextBlock Text="1  TU IDENTIDAD" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                    <ComboBox ItemsSource="{Binding UserPersonas}" SelectedItem="{Binding SelectedUserPersona}"
+                                              DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding !IsBusy}" />
+                                    <TextBlock Text="{Binding ActiveUserSubtitle}" FontSize="11" Foreground="#8F95A5" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="7">
+                                    <TextBlock Text="2  PERSONAJE" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                    <ComboBox ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                                              DisplayMemberBinding="{Binding DisplayName}" PlaceholderText="Elegí un personaje" IsEnabled="{Binding !IsBusy}" />
+                                    <Border Background="#11141B" CornerRadius="10" Padding="13" IsVisible="{Binding HasSelectedCharacter}">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding SelectedCharacterSubtitle}" FontSize="17" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding SelectedCharacterDetail}" FontSize="11" Foreground="#8F95A5" Margin="0,3,0,0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Classes="secondary" Content="Revisar perfil" Command="{Binding NavigateCommand}" CommandParameter="Perfil" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="{Binding SelectedCharacterDetail}" IsVisible="{Binding !HasSelectedCharacter}"
+                                               TextWrapping="Wrap" FontSize="12" Foreground="#8F95A5" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="7">
+                                    <TextBlock Text="3  ESCENA" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                    <ComboBox ItemsSource="{Binding Conversations}" SelectedItem="{Binding SelectedConversation}"
+                                              DisplayMemberBinding="{Binding Title}" PlaceholderText="Todavía no hay conversaciones para esta combinación" />
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                        <Button Classes="primary" Content="Empezar una escena nueva" Command="{Binding NewConversationCommand}" IsEnabled="{Binding CanStartChat}" />
+                                        <Button Grid.Column="1" Classes="secondary" Content="Continuar la seleccionada" Command="{Binding OpenSelectedConversationCommand}"
+                                                IsEnabled="{Binding HasSelectedConversation}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Button Classes="secondary" Content="＋ Crear otro personaje" Command="{Binding NewCharacterCommand}" />
+                            <Button Grid.Column="1" Classes="secondary" Content="Administrar mis identidades" Command="{Binding NavigateCommand}" CommandParameter="Usuarios" />
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
             <!-- Chat -->
             <Grid IsVisible="{Binding IsChat}" RowDefinitions="Auto,*,Auto">
                 <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="22,15">

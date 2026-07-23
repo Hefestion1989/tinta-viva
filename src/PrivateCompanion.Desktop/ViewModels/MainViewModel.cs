@@ -39,7 +39,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public IReadOnlyList<ProviderKind> ProviderKinds { get; } = Enum.GetValues<ProviderKind>();
     public IReadOnlyList<SceneMode> SceneModes { get; } = Enum.GetValues<SceneMode>();
 
-    [ObservableProperty] public partial string ActiveSection { get; set; } = "Chat";
+    [ObservableProperty] public partial string ActiveSection { get; set; } = "Inicio";
     [ObservableProperty] public partial CharacterListItem? SelectedCharacter { get; set; }
     [ObservableProperty] public partial UniverseListItem? SelectedUniverse { get; set; }
     [ObservableProperty] public partial UserPersonaListItem? SelectedUserPersona { get; set; }
@@ -135,6 +135,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial double BackgroundFocusX { get; set; } = 0.5;
     [ObservableProperty] public partial double BackgroundFocusY { get; set; } = 0.5;
 
+    public bool IsHome => ActiveSection == "Inicio";
     public bool IsChat => ActiveSection == "Chat";
     public bool IsUniverse => ActiveSection == "Universo";
     public bool IsProfile => ActiveSection == "Perfil";
@@ -144,6 +145,8 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public bool IsSettings => ActiveSection == "Configuración";
     public bool HasGalleryItems => Gallery.Count > 0;
     public bool HasSelectedCharacter => SelectedCharacter is not null;
+    public bool HasSelectedConversation => SelectedConversation is not null;
+    public bool CanStartChat => SelectedCharacter is not null && SelectedUserPersona is not null;
     public bool HasPortrait => CharacterPortraitPreview is not null;
     public bool HasUserPortrait => UserPortraitPreview is not null;
     public bool HasChatBackground => ChatBackgroundPreview is not null;
@@ -151,6 +154,9 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public RelativePoint PortraitTransformOrigin => new(PortraitFocusX, PortraitFocusY, RelativeUnit.Relative);
     public RelativePoint BackgroundTransformOrigin => new(BackgroundFocusX, BackgroundFocusY, RelativeUnit.Relative);
     public string SelectedCharacterSubtitle => SelectedCharacter is null ? "Sin personaje" : $"{SelectedCharacter.Name}, {SelectedCharacter.Age}";
+    public string SelectedCharacterDetail => SelectedCharacter is null
+        ? "Elegí un personaje para cargar su perfil y sus conversaciones."
+        : $"Revisión {SelectedCharacter.Revision} · editado {SelectedCharacter.UpdatedAt.ToLocalTime():dd/MM/yyyy HH:mm}";
     public string ActiveUserSubtitle => SelectedUserPersona is null ? "Sin identidad" : $"Conversando como {SelectedUserPersona.Name}";
 
     public async Task InitializeAsync()
@@ -159,24 +165,26 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         await _repository.InitializeAsync();
         await LoadUserPersonasAsync();
         await LoadUniversesAsync();
-        await LoadCharactersAsync();
+        await LoadCharactersAsync(preserveNoSelection: true);
         await LoadProviderAsync();
         _isInitializing = false;
         if (SelectedCharacter is not null && SelectedUserPersona is not null)
             await LoadCharacterWorkspaceAsync(SelectedCharacter.Id);
-        StatusText = "Todo permanece en este equipo.";
+        StatusText = "Elegí una identidad y un personaje para empezar. Todo permanece en este equipo.";
     }
 
     partial void OnActiveSectionChanged(string value)
     {
-        OnPropertyChanged(nameof(IsChat)); OnPropertyChanged(nameof(IsUniverse)); OnPropertyChanged(nameof(IsProfile)); OnPropertyChanged(nameof(IsMemory));
+        OnPropertyChanged(nameof(IsHome)); OnPropertyChanged(nameof(IsChat)); OnPropertyChanged(nameof(IsUniverse)); OnPropertyChanged(nameof(IsProfile)); OnPropertyChanged(nameof(IsMemory));
         OnPropertyChanged(nameof(IsGallery)); OnPropertyChanged(nameof(IsUsers)); OnPropertyChanged(nameof(IsSettings));
     }
 
     partial void OnSelectedCharacterChanged(CharacterListItem? value)
     {
         OnPropertyChanged(nameof(SelectedCharacterSubtitle));
+        OnPropertyChanged(nameof(SelectedCharacterDetail));
         OnPropertyChanged(nameof(HasSelectedCharacter));
+        OnPropertyChanged(nameof(CanStartChat));
         if (!_isInitializing && value is not null && SelectedUserPersona is not null) _ = LoadCharacterWorkspaceAsync(value.Id);
     }
 
@@ -188,6 +196,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     partial void OnSelectedUserPersonaChanged(UserPersonaListItem? value)
     {
         OnPropertyChanged(nameof(ActiveUserSubtitle));
+        OnPropertyChanged(nameof(CanStartChat));
         if (value is null) return;
         LoadUserPersonaFields(value);
         if (!_isInitializing) _ = ActivateUserPersonaAsync(value.Id);
@@ -195,6 +204,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
 
     partial void OnSelectedConversationChanged(ConversationListItem? value)
     {
+        OnPropertyChanged(nameof(HasSelectedConversation));
         if (value is not null) _ = LoadConversationAsync(value.Id);
     }
 
@@ -213,7 +223,28 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     partial void OnBackgroundFocusYChanged(double value) => OnPropertyChanged(nameof(BackgroundTransformOrigin));
 
     [RelayCommand]
-    private void Navigate(string section) => ActiveSection = section;
+    private void Navigate(string section)
+    {
+        if (section == "Chat" && !CanStartChat)
+        {
+            ActiveSection = "Inicio";
+            StatusText = "Elegí una identidad y un personaje antes de abrir la conversación.";
+            return;
+        }
+        ActiveSection = section;
+    }
+
+    [RelayCommand]
+    private void OpenSelectedConversation()
+    {
+        if (!CanStartChat || SelectedConversation is null)
+        {
+            StatusText = "Elegí un personaje y una conversación para continuar.";
+            return;
+        }
+        ActiveSection = "Chat";
+        StatusText = $"Conversación cargada con {SelectedCharacter!.Name}.";
+    }
 
     [RelayCommand]
     private void NewUniverse()
@@ -668,12 +699,15 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         catch (Exception ex) { StatusText = $"No pude cambiar de identidad: {ex.Message}"; }
     }
 
-    private async Task LoadCharactersAsync(Guid? selectId = null)
+    private async Task LoadCharactersAsync(Guid? selectId = null, bool preserveNoSelection = false)
     {
         var current = selectId ?? SelectedCharacter?.Id;
         Characters.Clear();
-        foreach (var item in await _repository.GetCharactersAsync()) Characters.Add(new CharacterListItem(item.Id, item.Name, item.Age));
-        SelectedCharacter = Characters.FirstOrDefault(x => x.Id == current) ?? Characters.FirstOrDefault();
+        foreach (var item in await _repository.GetCharactersAsync())
+            Characters.Add(new CharacterListItem(item.Id, item.Name, item.Age, item.Revision, item.UpdatedAt));
+        SelectedCharacter = preserveNoSelection && current is null
+            ? null
+            : Characters.FirstOrDefault(x => x.Id == current) ?? Characters.FirstOrDefault();
     }
 
     private async Task LoadUniversesAsync(Guid? selectId = null)
@@ -824,7 +858,10 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
 }
 
 public sealed record UniverseListItem(Guid Id, string Name);
-public sealed record CharacterListItem(Guid Id, string Name, int Age);
+public sealed record CharacterListItem(Guid Id, string Name, int Age, int Revision, DateTimeOffset UpdatedAt)
+{
+    public string DisplayName => $"{Name} · revisión {Revision}";
+}
 public sealed record UserPersonaListItem(Guid Id, string Name, int Age, string Pronouns, string Appearance,
     string About, string Profession, string Likes, string CommunicationStyle, string PortraitRelativePath, bool IsActive);
 public sealed record ConversationListItem(Guid Id, string Title, SceneMode Mode, DateTimeOffset UpdatedAt, bool IsClosed);
