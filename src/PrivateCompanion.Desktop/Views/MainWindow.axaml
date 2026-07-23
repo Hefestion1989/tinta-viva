@@ -13,7 +13,8 @@
     <Grid ColumnDefinitions="220,*,280" Background="#0B0D12" ClipToBounds="True">
         <!-- Navegación y personajes -->
         <Border Grid.Column="0" Background="#11141B" BorderBrush="#252936" BorderThickness="0,0,1,0" Padding="14" ClipToBounds="True">
-            <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                 <StackPanel Margin="4,4,4,18">
                     <TextBlock Text="TINTA" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" LetterSpacing="2" />
                     <TextBlock Text="Viva" FontSize="25" FontWeight="SemiBold" />
@@ -21,6 +22,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,16">
+                    <Button Classes="nav" Content="⌂  Inicio" Command="{Binding NavigateCommand}" CommandParameter="Inicio" />
                     <Button Classes="nav" Content="●  Conversación" Command="{Binding NavigateCommand}" CommandParameter="Chat" />
                     <Button Classes="nav" Content="◆  Universo y canon" Command="{Binding NavigateCommand}" CommandParameter="Universo" />
                     <Button Classes="nav" Content="♥  Perfil y personalidad" Command="{Binding NavigateCommand}" CommandParameter="Perfil" />
@@ -30,7 +32,7 @@
                     <Button Classes="nav" Content="⚙  Configuración" Command="{Binding NavigateCommand}" CommandParameter="Configuración" />
                 </StackPanel>
 
-                <Border Grid.Row="2" Background="#171A22" CornerRadius="10" Padding="10" Margin="0,0,0,12">
+                <Border Grid.Row="2" Background="#171A22" CornerRadius="10" Padding="10" Margin="0,0,0,12" IsVisible="{Binding !IsSettings}">
                     <StackPanel Spacing="7">
                         <TextBlock Text="IDENTIDAD ACTIVA" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
                         <Grid ColumnDefinitions="38,*" ColumnSpacing="8">
@@ -47,7 +49,7 @@
                     </StackPanel>
                 </Border>
 
-                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto,Auto">
+                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto,Auto" IsVisible="{Binding !IsSettings}">
                     <TextBlock Text="PERSONAJES" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" Margin="8,0,0,8" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                              Background="Transparent" BorderThickness="0">
@@ -90,17 +92,86 @@
                     <Button Grid.Row="3" Classes="secondary" Content="+ Nuevo personaje" Command="{Binding NewCharacterCommand}" Margin="0,9,0,0" />
                 </Grid>
 
-                <Border Grid.Row="4" Background="#171A22" CornerRadius="9" Padding="10" Margin="0,14,0,0">
+                <Border Grid.Row="4" Background="#171A22" CornerRadius="9" Padding="10" Margin="0,14,0,0" IsVisible="{Binding !IsSettings}">
                     <StackPanel>
                         <TextBlock Text="PRIVACIDAD" FontSize="10" Foreground="#7CDAA3" FontWeight="SemiBold" />
                         <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="11" Foreground="#ABB0BF" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
-            </Grid>
+              </Grid>
+            </ScrollViewer>
         </Border>
 
         <!-- Contenido principal -->
         <Grid Grid.Column="1" Background="#0E1117" ClipToBounds="True">
+            <!-- Inicio -->
+            <Grid IsVisible="{Binding IsHome}">
+                <ScrollViewer Padding="34,28" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Center" Spacing="20">
+                        <StackPanel Spacing="7" Margin="0,10,0,4">
+                            <TextBlock Text="Tu espacio de escritura" FontSize="30" FontWeight="SemiBold" />
+                            <TextBlock Text="Elegí quién sos, con quién querés escribir y qué escena abrir. Nada empieza ni se envía hasta que vos lo decidas."
+                                       TextWrapping="Wrap" FontSize="14" Foreground="#A7ADBB" LineHeight="21" />
+                        </StackPanel>
+
+                        <Border Background="#14221B" BorderBrush="#2F7D57" BorderThickness="1" CornerRadius="12" Padding="15">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="●" Foreground="#63D69A" FontSize="14" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Privado y local" FontWeight="SemiBold" Foreground="#A7E7C2" />
+                                    <TextBlock Text="Perfiles, escenas, conversaciones e imágenes permanecen en este equipo."
+                                               TextWrapping="Wrap" FontSize="12" Foreground="#9BC9AE" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#171A22" BorderBrush="#2D3240" BorderThickness="1" CornerRadius="14" Padding="20">
+                            <StackPanel Spacing="17">
+                                <StackPanel Spacing="7">
+                                    <TextBlock Text="1  TU IDENTIDAD" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                    <ComboBox ItemsSource="{Binding UserPersonas}" SelectedItem="{Binding SelectedUserPersona}"
+                                              DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding !IsBusy}" />
+                                    <TextBlock Text="{Binding ActiveUserSubtitle}" FontSize="11" Foreground="#8F95A5" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="7">
+                                    <TextBlock Text="2  PERSONAJE" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                    <ComboBox ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                                              DisplayMemberBinding="{Binding DisplayName}" PlaceholderText="Elegí un personaje" IsEnabled="{Binding !IsBusy}" />
+                                    <Border Background="#11141B" CornerRadius="10" Padding="13" IsVisible="{Binding HasSelectedCharacter}">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding SelectedCharacterSubtitle}" FontSize="17" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding SelectedCharacterDetail}" FontSize="11" Foreground="#8F95A5" Margin="0,3,0,0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Classes="secondary" Content="Revisar perfil" Command="{Binding NavigateCommand}" CommandParameter="Perfil" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="{Binding SelectedCharacterDetail}" IsVisible="{Binding !HasSelectedCharacter}"
+                                               TextWrapping="Wrap" FontSize="12" Foreground="#8F95A5" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="7">
+                                    <TextBlock Text="3  ESCENA" FontSize="11" FontWeight="SemiBold" Foreground="#9B8BFF" />
+                                    <ComboBox ItemsSource="{Binding Conversations}" SelectedItem="{Binding SelectedConversation}"
+                                              DisplayMemberBinding="{Binding Title}" PlaceholderText="Todavía no hay conversaciones para esta combinación" />
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                        <Button Classes="primary" Content="Empezar una escena nueva" Command="{Binding NewConversationCommand}" IsEnabled="{Binding CanStartChat}" />
+                                        <Button Grid.Column="1" Classes="secondary" Content="Continuar la seleccionada" Command="{Binding OpenSelectedConversationCommand}"
+                                                IsEnabled="{Binding HasSelectedConversation}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Button Classes="secondary" Content="＋ Crear otro personaje" Command="{Binding NewCharacterCommand}" />
+                            <Button Grid.Column="1" Classes="secondary" Content="Administrar mis identidades" Command="{Binding NavigateCommand}" CommandParameter="Usuarios" />
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
             <!-- Chat -->
             <Grid IsVisible="{Binding IsChat}" RowDefinitions="Auto,*,Auto">
                 <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="22,15">
@@ -363,7 +434,7 @@
                                     <Border Width="250" Background="#141821" BorderBrush="#303545" BorderThickness="1" CornerRadius="12" Margin="6" ClipToBounds="True">
                                         <Grid RowDefinitions="170,Auto">
                                             <Border Background="#0E1117">
-                                                <Image Source="{Binding Preview}" Stretch="UniformToFill" />
+                                                <Image Source="{Binding Preview}" Stretch="Uniform" />
                                             </Border>
                                             <StackPanel Grid.Row="1" Margin="12,10" Spacing="4">
                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
@@ -379,36 +450,11 @@
                 </Grid>
             </Grid>
 
-            <!-- Configuración -->
-            <Grid IsVisible="{Binding IsSettings}" RowDefinitions="Auto,*">
-                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
-                    <StackPanel><TextBlock Text="Motor local" FontSize="22" FontWeight="SemiBold" />
-                        <TextBlock Text="Solo se aceptan endpoints de localhost. No hay telemetría ni nube." Foreground="#8F95A5" FontSize="12" /></StackPanel>
-                </Border>
-                <ScrollViewer Grid.Row="1" Padding="28,24">
-                    <StackPanel MaxWidth="720" HorizontalAlignment="Left" Spacing="12">
-                        <TextBlock Text="Proveedor" /><ComboBox ItemsSource="{Binding ProviderKinds}" SelectedItem="{Binding SelectedProviderKind}" />
-                        <TextBlock Text="Nombre del perfil" /><TextBox Text="{Binding ProviderName}" />
-                        <TextBlock Text="URL base" /><TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="http://127.0.0.1:1234/v1" />
-                        <TextBlock Text="Modelo / alias" /><TextBox Text="{Binding ProviderModel}" />
-                        <TextBlock Text="Iniciador local opcional (.bat)" /><TextBox Text="{Binding ProviderLaunchCommand}" />
-                        <CheckBox Content="Iniciar el motor automáticamente cuando haga falta" IsChecked="{Binding ProviderAutoStart}" />
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                            <StackPanel><TextBlock Text="Temperatura" /><Slider Minimum="0" Maximum="1.5" Value="{Binding ProviderTemperature}" /></StackPanel>
-                            <StackPanel Grid.Column="1"><TextBlock Text="Máximo de tokens" /><NumericUpDown Minimum="64" Maximum="4096" Value="{Binding ProviderMaxTokens}" /></StackPanel>
-                        </Grid>
-                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
-                            <Button Classes="primary" Content="Guardar" Command="{Binding SaveProviderCommand}" />
-                            <Button Classes="secondary" Content="Iniciar y comprobar" Command="{Binding TestProviderCommand}" />
-                        </StackPanel>
-                        <Border Background="#171A22" CornerRadius="9" Padding="12" Margin="0,8,0,0"><TextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap" Foreground="#B8BDCA" /></Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
         </Grid>
 
         <!-- Contexto lateral -->
-        <Border Grid.Column="2" Background="#11141B" BorderBrush="#252936" BorderThickness="1,0,0,0" Padding="18,54,18,18" ClipToBounds="True">
+        <Border Grid.Column="2" Background="#11141B" BorderBrush="#252936" BorderThickness="1,0,0,0" Padding="18,54,18,18"
+                ClipToBounds="True" IsVisible="{Binding !IsSettings}">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="15">
                     <TextBlock Text="CONTEXTO ACTUAL" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
@@ -430,10 +476,15 @@
                     <TextBlock Text="ÁLBUM" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
                     <Border Background="#171A22" CornerRadius="12" ClipToBounds="True">
                         <StackPanel>
-                            <Border Height="135" Background="#0E1117">
+                            <Border Height="220" Background="#0E1117" ClipToBounds="True">
                                 <Grid>
                                     <TextBlock Text="Sin imágenes" Foreground="#747B8D" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    <Image Source="{Binding AlbumItem.Preview}" Stretch="UniformToFill" IsVisible="{Binding HasAlbumItem}" />
+                                    <Image Source="{Binding AlbumItem.Preview}" Stretch="Uniform" IsVisible="{Binding HasAlbumItem}"
+                                           RenderTransformOrigin="{Binding AlbumTransformOrigin}">
+                                        <Image.RenderTransform>
+                                            <ScaleTransform ScaleX="{Binding AlbumZoom}" ScaleY="{Binding AlbumZoom}" />
+                                        </Image.RenderTransform>
+                                    </Image>
                                 </Grid>
                             </Border>
                             <StackPanel Margin="10" Spacing="8">
@@ -443,17 +494,27 @@
                                     <Button Classes="secondary" Content="‹ Anterior" Command="{Binding PreviousAlbumImageCommand}" />
                                     <Button Grid.Column="1" Classes="secondary" Content="Siguiente ›" Command="{Binding NextAlbumImageCommand}" />
                                 </Grid>
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
-                                    <Button Classes="secondary" Content="Rostro" Command="{Binding UseAlbumAsPortraitCommand}" IsEnabled="{Binding HasAlbumItem}" />
-                                    <Button Grid.Column="1" Classes="primary" Content="Fondo" Command="{Binding UseAlbumAsBackgroundCommand}" IsEnabled="{Binding HasAlbumItem}" />
-                                </Grid>
+                                <Expander Header="Ajustar vista del álbum" Background="#11141B" Padding="9" CornerRadius="9" IsEnabled="{Binding HasAlbumItem}">
+                                    <StackPanel Spacing="7" Margin="0,7,0,0">
+                                        <TextBlock Text="Zoom de esta vista" FontSize="10" />
+                                        <Slider Minimum="1" Maximum="4" Value="{Binding AlbumZoom}" />
+                                        <TextBlock Text="Centro horizontal" FontSize="10" />
+                                        <Slider Minimum="0" Maximum="1" Value="{Binding AlbumFocusX}" />
+                                        <TextBlock Text="Centro vertical" FontSize="10" />
+                                        <Slider Minimum="0" Maximum="1" Value="{Binding AlbumFocusY}" />
+                                        <Button Classes="secondary" Content="Mostrar imagen completa" Command="{Binding ResetAlbumViewCommand}" />
+                                        <TextBlock Text="Sólo cambia la vista del álbum; el archivo original queda intacto." TextWrapping="Wrap" FontSize="10" Foreground="#8F95A5" />
+                                    </StackPanel>
+                                </Expander>
+                                <Button Classes="secondary" Content="Usar como retrato" Command="{Binding UseAlbumAsPortraitCommand}" IsEnabled="{Binding HasAlbumItem}" />
+                                <Button Classes="primary" Content="Usar como fondo del chat" Command="{Binding UseAlbumAsBackgroundCommand}" IsEnabled="{Binding HasAlbumItem}" />
                                 <Button Classes="secondary" Content="Quitar fondo del chat" Command="{Binding ClearChatBackgroundCommand}" IsVisible="{Binding HasChatBackground}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <TextBlock Text="ENCUADRE" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
-                    <Expander Header="Ajustar retrato y fondo" Background="#171A22" Padding="10" CornerRadius="10">
+                    <Expander Header="Ajustar retrato y fondo del chat" Background="#171A22" Padding="10" CornerRadius="10">
                         <StackPanel Spacing="9" Margin="0,8,0,0">
                             <TextBlock Text="RETRATO" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
                             <TextBlock Text="Zoom" FontSize="10" /><Slider Minimum="1" Maximum="4" Value="{Binding PortraitZoom}" IsEnabled="{Binding HasPortrait}" />
@@ -498,6 +559,168 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <!-- Configuración ocupa el área de trabajo completa; el contexto narrativo queda oculto detrás. -->
+        <Grid Grid.Column="1" Grid.ColumnSpan="2" IsVisible="{Binding IsSettings}"
+              Background="#0E1117" RowDefinitions="Auto,*">
+            <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="30,20">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Motor de escritura" FontSize="25" FontWeight="SemiBold" />
+                    <TextBlock Text="Tu modelo local sigue siendo el predeterminado. La conexión online es opcional."
+                               Foreground="#9AA0AF" FontSize="12" />
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" Padding="30,24" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="900" HorizontalAlignment="Center" Spacing="16">
+                    <Border Background="#171A22" BorderBrush="#303545" BorderThickness="1" CornerRadius="14" Padding="18">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="22">
+                            <StackPanel Spacing="7">
+                                <TextBlock Text="MOTOR ACTIVO" FontSize="10" FontWeight="SemiBold" Foreground="#7CDAA3" />
+                                <TextBlock Text="{Binding ActiveProviderText}" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="Tus motores guardados" FontSize="11" Foreground="#858C9C" Margin="0,5,0,0" />
+                                <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProviderProfile}"
+                                          DisplayMemberBinding="{Binding Name}" MinWidth="360" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="9" VerticalAlignment="Center">
+                                <Button Classes="secondary" Content="Agregar otro motor local" Command="{Binding NewLocalProviderCommand}" MinWidth="210" />
+                                <Button Classes="primary" Content="Agregar conexión online" Command="{Binding NewRemoteProviderCommand}" MinWidth="210" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Background="#14221B" BorderBrush="#2F7D57" BorderThickness="1" CornerRadius="11" Padding="13">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <TextBlock Text="●" Foreground="#63D69A" />
+                            <TextBlock Grid.Column="1" Text="{Binding ProviderPrivacyText}" TextWrapping="Wrap" Foreground="#A7E7C2" />
+                        </Grid>
+                    </Border>
+
+                    <Border Background="#171A22" BorderBrush="#3A4050" BorderThickness="1" CornerRadius="14" Padding="20">
+                        <StackPanel Spacing="17">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding ProviderEditorTitle}" FontSize="21" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ProviderEditorDescription}" TextWrapping="Wrap" Foreground="#9299A9" />
+                            </StackPanel>
+
+                            <!-- Flujo online -->
+                            <StackPanel IsVisible="{Binding IsRemoteProvider}" Spacing="14">
+                                <Border Background="#11141B" CornerRadius="11" Padding="15">
+                                    <StackPanel Spacing="9">
+                                        <TextBlock Text="1  ELEGÍ EL SERVICIO" FontSize="11" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                        <ComboBox ItemsSource="{Binding RemoteProviderPresets}" SelectedItem="{Binding SelectedRemoteProviderPreset}"
+                                                  DisplayMemberBinding="{Binding Label}" />
+                                        <TextBlock Text="{Binding ProviderSetupHelp}" TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                        <StackPanel IsVisible="{Binding IsCustomRemoteProvider}" Spacing="6">
+                                            <TextBlock Text="Dirección HTTPS del servidor" />
+                                            <TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="https://servidor.example/v1" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#11141B" CornerRadius="11" Padding="15">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="2  AGREGÁ TU CLAVE" FontSize="11" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                            <TextBlock Text="Los servicios alojados usan una clave; un servidor propio puede no necesitarla. Si la agregás, queda protegida por Windows."
+                                                       TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                            <TextBox Text="{Binding ProviderApiToken}" PasswordChar="●"
+                                                     PlaceholderText="Pegá aquí la clave del servicio" />
+                                            <TextBlock Text="Ya hay una clave protegida para este motor." IsVisible="{Binding HasStoredProviderToken}"
+                                                       FontSize="11" Foreground="#7CDAA3" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Bottom">
+                                            <Button Classes="secondary" Content="Obtener mi clave" Command="{Binding OpenProviderHelpCommand}"
+                                                    IsVisible="{Binding HasProviderHelpLink}" MinWidth="155" />
+                                            <Button Classes="secondary" Content="Quitar clave guardada" Command="{Binding DeleteProviderTokenCommand}"
+                                                    IsVisible="{Binding HasStoredProviderToken}" MinWidth="155" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Background="#11141B" CornerRadius="11" Padding="15">
+                                    <StackPanel Spacing="9">
+                                        <TextBlock Text="3  ELEGÍ EL MODELO" FontSize="11" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                        <TextBlock Text="Tinta Viva puede consultar la lista y evitarte copiar nombres técnicos."
+                                                   TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                        <Button Classes="secondary" Content="Buscar modelos disponibles" Command="{Binding DetectProviderModelsCommand}"
+                                                HorizontalAlignment="Left" />
+                                        <ComboBox ItemsSource="{Binding DetectedProviderModels}" SelectedItem="{Binding SelectedDetectedProviderModel}"
+                                                  IsVisible="{Binding HasDetectedProviderModels}" PlaceholderText="Elegí un modelo"
+                                                  MaxDropDownHeight="300" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Classes="primary" Content="Probar conexión y usar este motor"
+                                        Command="{Binding TestProviderCommand}" HorizontalAlignment="Left" MinWidth="285" />
+                            </StackPanel>
+
+                            <!-- Flujo local -->
+                            <StackPanel IsVisible="{Binding IsLocalProvider}" Spacing="12">
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Nombre para reconocerlo" />
+                                        <TextBox Text="{Binding ProviderName}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="6">
+                                        <TextBlock Text="Modelo cargado" />
+                                        <TextBox Text="{Binding ProviderModel}" PlaceholderText="Identificador informado por el motor" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Dirección local" />
+                                    <TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="http://127.0.0.1:1234/v1" />
+                                </StackPanel>
+                                <Button Classes="primary" Content="Probar y usar este motor local"
+                                        Command="{Binding TestProviderCommand}" HorizontalAlignment="Left" MinWidth="245" />
+                            </StackPanel>
+
+                            <Expander Header="Configuración avanzada" Background="#11141B" Padding="13" CornerRadius="10">
+                                <StackPanel Spacing="11" Margin="0,10,0,0">
+                                    <Grid IsVisible="{Binding IsRemoteProvider}" ColumnDefinitions="*,*" ColumnSpacing="14">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="Nombre interno del perfil" FontSize="11" />
+                                            <TextBox Text="{Binding ProviderName}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="5">
+                                            <TextBlock Text="Identificador manual del modelo" FontSize="11" />
+                                            <TextBox Text="{Binding ProviderModel}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel IsVisible="{Binding IsHostedRemoteProvider}" Spacing="5">
+                                        <TextBlock Text="URL compatible" FontSize="11" />
+                                        <TextBox Text="{Binding ProviderBaseUrl}" />
+                                    </StackPanel>
+                                    <StackPanel IsVisible="{Binding IsLocalProvider}" Spacing="8">
+                                        <TextBlock Text="Formato del servidor local" FontSize="11" />
+                                        <ComboBox ItemsSource="{Binding ProviderKinds}" SelectedItem="{Binding SelectedProviderKind}" />
+                                        <TextBlock Text="Iniciador local opcional (.bat)" FontSize="11" />
+                                        <TextBox Text="{Binding ProviderLaunchCommand}" />
+                                        <CheckBox Content="Iniciar el motor automáticamente cuando haga falta" IsChecked="{Binding ProviderAutoStart}" />
+                                    </StackPanel>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="Creatividad de las respuestas" FontSize="11" />
+                                            <Slider Minimum="0" Maximum="1.5" Value="{Binding ProviderTemperature}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="5">
+                                            <TextBlock Text="Extensión máxima" FontSize="11" />
+                                            <NumericUpDown Minimum="64" Maximum="4096" Value="{Binding ProviderMaxTokens}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Classes="secondary" Content="Guardar sin comprobar" Command="{Binding SaveProviderCommand}"
+                                            HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </Expander>
+
+                            <Border Background="#0E1117" BorderBrush="#2D3240" BorderThickness="1" CornerRadius="9" Padding="12">
+                                <TextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap" Foreground="#B8BDCA" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
 
         <Button Grid.ColumnSpan="3"
                 Width="36"

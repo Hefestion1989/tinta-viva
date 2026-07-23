@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PrivateCompanion.Domain;
 using PrivateCompanion.Infrastructure.Persistence;
 
 namespace PrivateCompanion.Tests;
@@ -41,7 +42,8 @@ public sealed class MigrationCompatibilityTests : IDisposable
         Assert.Equal("Español rioplatense", (await repository.GetCharacterAsync(characterId))!.Language);
         Assert.NotNull((await repository.GetCharacterAsync(characterId))!.UniverseId);
         Assert.Single(await repository.GetUniversesAsync());
-        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v6-*.db"));
+        Assert.Equal(ProviderLocation.Local, (await repository.GetActiveProviderAsync()).Location);
+        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v7-*.db"));
     }
 
     [Fact]
@@ -77,7 +79,7 @@ public sealed class MigrationCompatibilityTests : IDisposable
         Assert.Equal(1.75, stored.BackgroundZoom);
         var user = await repository.GetActiveUserPersonaAsync();
         Assert.Equal(string.Empty, user.PortraitRelativePath);
-        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v6-*.db"));
+        Assert.Single(Directory.GetFiles(Path.Combine(_directory, "backups"), "tinta-viva-pre-v7-*.db"));
     }
 
     private const string LegacySchema = """

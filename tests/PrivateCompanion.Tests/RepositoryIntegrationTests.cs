@@ -84,6 +84,32 @@ public sealed class RepositoryIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Keeps_separate_local_and_remote_provider_profiles()
+    {
+        Directory.CreateDirectory(_directory);
+        var repository = new CompanionRepository(
+            new CompanionDbContextFactory(Path.Combine(_directory, "providers.db")), string.Empty);
+        await repository.InitializeAsync();
+        var local = await repository.GetActiveProviderAsync();
+        var remote = new ProviderProfile
+        {
+            Name = "Servidor independiente",
+            Kind = ProviderKind.OpenAICompatible,
+            Location = ProviderLocation.Remote,
+            BaseUrl = "https://models.example/v1",
+            Model = "open-model"
+        };
+
+        await repository.SaveProviderAsync(remote);
+
+        var profiles = await repository.GetProvidersAsync();
+        Assert.Equal(2, profiles.Count);
+        Assert.Equal(remote.Id, (await repository.GetActiveProviderAsync()).Id);
+        Assert.Contains(profiles, x => x.Id == local.Id && x.Location == ProviderLocation.Local);
+        Assert.Contains(profiles, x => x.Id == remote.Id && x.Location == ProviderLocation.Remote);
+    }
+
+    [Fact]
     public void Rejects_underage_characters()
     {
         var character = new Character { Name = "Inválido", Age = 17 };

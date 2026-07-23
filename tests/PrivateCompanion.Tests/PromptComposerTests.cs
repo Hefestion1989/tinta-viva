@@ -75,4 +75,32 @@ public sealed class PromptComposerTests
         Assert.Contains("orden secreta", prompt[0].Content);
         Assert.Contains("no modifica", prompt[0].Content, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Keeps_character_and_user_roles_strictly_separated()
+    {
+        var character = new Character
+        {
+            Name = "Lucas",
+            Age = 24,
+            Appearance = "Viste una campera negra."
+        };
+        var userPersona = new UserPersona
+        {
+            Name = "Dami",
+            Age = 30,
+            Appearance = "Viste una estola blanca."
+        };
+
+        var prompt = new PromptComposer().Compose(null, character, userPersona,
+            new Conversation { UserPersonaId = userPersona.Id },
+            new RelationshipState { CharacterId = character.Id, UserPersonaId = userPersona.Id }, [], []);
+
+        Assert.Contains("CONTRATO DE ROLES", prompt[0].Content);
+        Assert.Contains("interpretás únicamente a Lucas", prompt[0].Content);
+        Assert.Contains("La persona usuaria interpreta únicamente a Dami", prompt[0].Content);
+        Assert.Contains("Todo «yo», «me», «mi» o «mío»", prompt[0].Content);
+        Assert.Contains("No adoptes como propios", prompt[0].Content);
+        Assert.Contains("Esta ficha describe a Dami, no a Lucas", prompt[0].Content);
+    }
 }

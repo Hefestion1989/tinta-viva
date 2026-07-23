@@ -17,6 +17,14 @@ public interface ITextGenerationGateway
     Task<ProviderProbe> ProbeAsync(ProviderProfile provider, bool allowAutoStart, CancellationToken cancellationToken = default);
 }
 
+public interface IProviderSecretStore
+{
+    Task<bool> ExistsAsync(Guid providerId, CancellationToken cancellationToken = default);
+    Task<string?> GetAsync(Guid providerId, CancellationToken cancellationToken = default);
+    Task SaveAsync(Guid providerId, string secret, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid providerId, CancellationToken cancellationToken = default);
+}
+
 public interface ICompanionRepository
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
@@ -53,6 +61,7 @@ public interface ICompanionRepository
     Task<RelationshipState> GetRelationshipAsync(Guid characterId, Guid userPersonaId, CancellationToken cancellationToken = default);
     Task SaveRelationshipAsync(RelationshipState relationship, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ProviderProfile>> GetProvidersAsync(CancellationToken cancellationToken = default);
     Task<ProviderProfile> GetActiveProviderAsync(CancellationToken cancellationToken = default);
     Task SaveProviderAsync(ProviderProfile provider, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<MediaAsset>> GetMediaAsync(Guid characterId, CancellationToken cancellationToken = default);

@@ -300,6 +300,15 @@ public sealed class CompanionRepository(
         return await db.Providers.AsNoTracking().OrderByDescending(x => x.IsActive).FirstAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ProviderProfile>> GetProvidersAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await db.Providers.AsNoTracking()
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task SaveProviderAsync(ProviderProfile provider, CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);

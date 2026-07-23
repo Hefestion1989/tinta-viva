@@ -24,10 +24,11 @@ public partial class App : Avalonia.Application
         {
             var factory = new CompanionDbContextFactory(CompanionPaths.DatabasePath);
             var repository = new CompanionRepository(factory, CompanionPaths.FindDefaultModelLauncher());
-            var gateway = new OpenAiCompatibleTextGateway();
+            var providerSecretStore = new WindowsCredentialProviderSecretStore();
+            var gateway = new OpenAiCompatibleTextGateway(providerSecretStore);
             var service = new CompanionApplicationService(repository, gateway, new PromptComposer());
             var mediaLibrary = new LocalMediaLibrary(repository, CompanionPaths.DataDirectory);
-            var viewModel = new MainViewModel(service, mediaLibrary);
+            var viewModel = new MainViewModel(service, mediaLibrary, providerSecretStore);
             await viewModel.InitializeAsync();
 
             desktop.MainWindow = new MainWindow

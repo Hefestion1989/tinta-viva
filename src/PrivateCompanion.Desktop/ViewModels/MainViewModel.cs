@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -15,7 +16,10 @@ using PrivateCompanion.Domain;
 
 namespace PrivateCompanion.Desktop.ViewModels;
 
-public partial class MainViewModel(CompanionApplicationService application, IMediaLibrary mediaLibrary) : ViewModelBase
+public partial class MainViewModel(
+    CompanionApplicationService application,
+    IMediaLibrary mediaLibrary,
+    IProviderSecretStore providerSecretStore) : ViewModelBase
 {
     private readonly ICompanionRepository _repository = application.Repository;
     private readonly IMediaLibrary _mediaLibrary = mediaLibrary;
@@ -26,6 +30,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     private ProviderProfile? _provider;
     private CharacterMediaPresentation? _mediaPresentation;
     private bool _isInitializing;
+    private bool _isLoadingProviderFields;
 
     public ObservableCollection<UserPersonaListItem> UserPersonas { get; } = [];
     public ObservableCollection<UniverseListItem> Universes { get; } = [];
@@ -35,11 +40,15 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public ObservableCollection<MemoryListItem> Memories { get; } = [];
     public ObservableCollection<DiaryListItem> Diary { get; } = [];
     public ObservableCollection<GalleryItemViewModel> Gallery { get; } = [];
+    public ObservableCollection<ProviderProfile> Providers { get; } = [];
+    public ObservableCollection<string> DetectedProviderModels { get; } = [];
+    public IReadOnlyList<ProviderPreset> RemoteProviderPresets { get; } = ProviderPresetCatalog.Online;
     public IReadOnlyList<MemoryKind> MemoryKinds { get; } = Enum.GetValues<MemoryKind>();
     public IReadOnlyList<ProviderKind> ProviderKinds { get; } = Enum.GetValues<ProviderKind>();
+    public IReadOnlyList<ProviderLocation> ProviderLocations { get; } = Enum.GetValues<ProviderLocation>();
     public IReadOnlyList<SceneMode> SceneModes { get; } = Enum.GetValues<SceneMode>();
 
-    [ObservableProperty] public partial string ActiveSection { get; set; } = "Chat";
+    [ObservableProperty] public partial string ActiveSection { get; set; } = "Inicio";
     [ObservableProperty] public partial CharacterListItem? SelectedCharacter { get; set; }
     [ObservableProperty] public partial UniverseListItem? SelectedUniverse { get; set; }
     [ObservableProperty] public partial UserPersonaListItem? SelectedUserPersona { get; set; }
@@ -115,12 +124,22 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial MemoryKind SelectedMemoryKind { get; set; } = MemoryKind.Personal;
     [ObservableProperty] public partial double NewMemoryImportance { get; set; } = 0.65;
 
+    [ObservableProperty] public partial ProviderProfile? SelectedProviderProfile { get; set; }
     [ObservableProperty] public partial ProviderKind SelectedProviderKind { get; set; } = ProviderKind.LlamaCpp;
+    [ObservableProperty] public partial ProviderLocation SelectedProviderLocation { get; set; } = ProviderLocation.Local;
     [ObservableProperty] public partial string ProviderName { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProviderBaseUrl { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProviderModel { get; set; } = string.Empty;
     [ObservableProperty] public partial string ProviderLaunchCommand { get; set; } = string.Empty;
     [ObservableProperty] public partial bool ProviderAutoStart { get; set; }
+    [ObservableProperty] public partial string ProviderApiToken { get; set; } = string.Empty;
+    [ObservableProperty] public partial bool HasStoredProviderToken { get; set; }
+    [ObservableProperty] public partial ProviderPreset? SelectedRemoteProviderPreset { get; set; }
+    [ObservableProperty] public partial string? SelectedDetectedProviderModel { get; set; }
+    [ObservableProperty] public partial string ProviderSetupHelp { get; set; } = "Elegí una opción para completar la conexión sin memorizar direcciones técnicas.";
+    [ObservableProperty] public partial string ProviderEditorTitle { get; set; } = "Motor local";
+    [ObservableProperty] public partial string ProviderEditorDescription { get; set; } = "Tu motor actual funciona en este equipo.";
+    [ObservableProperty] public partial string ActiveProviderText { get; set; } = "Cargando motor activo…";
     [ObservableProperty] public partial double ProviderTemperature { get; set; } = 0.85;
     [ObservableProperty] public partial int ProviderMaxTokens { get; set; } = 512;
 
@@ -128,6 +147,9 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial GalleryItemViewModel? AlbumItem { get; set; }
     [ObservableProperty] public partial Bitmap? CharacterPortraitPreview { get; set; }
     [ObservableProperty] public partial Bitmap? ChatBackgroundPreview { get; set; }
+    [ObservableProperty] public partial double AlbumZoom { get; set; } = 1.0;
+    [ObservableProperty] public partial double AlbumFocusX { get; set; } = 0.5;
+    [ObservableProperty] public partial double AlbumFocusY { get; set; } = 0.5;
     [ObservableProperty] public partial double PortraitZoom { get; set; } = 1.0;
     [ObservableProperty] public partial double PortraitFocusX { get; set; } = 0.5;
     [ObservableProperty] public partial double PortraitFocusY { get; set; } = 0.5;
@@ -135,6 +157,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial double BackgroundFocusX { get; set; } = 0.5;
     [ObservableProperty] public partial double BackgroundFocusY { get; set; } = 0.5;
 
+    public bool IsHome => ActiveSection == "Inicio";
     public bool IsChat => ActiveSection == "Chat";
     public bool IsUniverse => ActiveSection == "Universo";
     public bool IsProfile => ActiveSection == "Perfil";
@@ -142,15 +165,30 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public bool IsGallery => ActiveSection == "Galería";
     public bool IsUsers => ActiveSection == "Usuarios";
     public bool IsSettings => ActiveSection == "Configuración";
+    public bool IsLocalProvider => SelectedProviderLocation == ProviderLocation.Local;
+    public bool IsRemoteProvider => SelectedProviderLocation == ProviderLocation.Remote;
+    public bool HasDetectedProviderModels => DetectedProviderModels.Count > 0;
+    public bool HasProviderHelpLink => !string.IsNullOrWhiteSpace(SelectedRemoteProviderPreset?.HelpUrl);
+    public bool IsCustomRemoteProvider => IsRemoteProvider && SelectedRemoteProviderPreset?.Id == "custom";
+    public bool IsHostedRemoteProvider => IsRemoteProvider && !IsCustomRemoteProvider;
+    public string ProviderPrivacyText => IsLocalProvider
+        ? "Modo local: prompts, respuestas y datos permanecen en este equipo."
+        : "Modo online: los chats se guardan localmente, pero el contexto necesario para responder se envía al servidor remoto.";
     public bool HasGalleryItems => Gallery.Count > 0;
     public bool HasSelectedCharacter => SelectedCharacter is not null;
+    public bool HasSelectedConversation => SelectedConversation is not null;
+    public bool CanStartChat => SelectedCharacter is not null && SelectedUserPersona is not null;
     public bool HasPortrait => CharacterPortraitPreview is not null;
     public bool HasUserPortrait => UserPortraitPreview is not null;
     public bool HasChatBackground => ChatBackgroundPreview is not null;
     public bool HasAlbumItem => AlbumItem is not null;
+    public RelativePoint AlbumTransformOrigin => new(AlbumFocusX, AlbumFocusY, RelativeUnit.Relative);
     public RelativePoint PortraitTransformOrigin => new(PortraitFocusX, PortraitFocusY, RelativeUnit.Relative);
     public RelativePoint BackgroundTransformOrigin => new(BackgroundFocusX, BackgroundFocusY, RelativeUnit.Relative);
     public string SelectedCharacterSubtitle => SelectedCharacter is null ? "Sin personaje" : $"{SelectedCharacter.Name}, {SelectedCharacter.Age}";
+    public string SelectedCharacterDetail => SelectedCharacter is null
+        ? "Elegí un personaje para cargar su perfil y sus conversaciones."
+        : $"Revisión {SelectedCharacter.Revision} · editado {SelectedCharacter.UpdatedAt.ToLocalTime():dd/MM/yyyy HH:mm}";
     public string ActiveUserSubtitle => SelectedUserPersona is null ? "Sin identidad" : $"Conversando como {SelectedUserPersona.Name}";
 
     public async Task InitializeAsync()
@@ -159,24 +197,26 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         await _repository.InitializeAsync();
         await LoadUserPersonasAsync();
         await LoadUniversesAsync();
-        await LoadCharactersAsync();
-        await LoadProviderAsync();
+        await LoadCharactersAsync(preserveNoSelection: true);
+        await LoadProvidersAsync();
         _isInitializing = false;
         if (SelectedCharacter is not null && SelectedUserPersona is not null)
             await LoadCharacterWorkspaceAsync(SelectedCharacter.Id);
-        StatusText = "Todo permanece en este equipo.";
+        StatusText = "Elegí una identidad y un personaje para empezar. Todo permanece en este equipo.";
     }
 
     partial void OnActiveSectionChanged(string value)
     {
-        OnPropertyChanged(nameof(IsChat)); OnPropertyChanged(nameof(IsUniverse)); OnPropertyChanged(nameof(IsProfile)); OnPropertyChanged(nameof(IsMemory));
+        OnPropertyChanged(nameof(IsHome)); OnPropertyChanged(nameof(IsChat)); OnPropertyChanged(nameof(IsUniverse)); OnPropertyChanged(nameof(IsProfile)); OnPropertyChanged(nameof(IsMemory));
         OnPropertyChanged(nameof(IsGallery)); OnPropertyChanged(nameof(IsUsers)); OnPropertyChanged(nameof(IsSettings));
     }
 
     partial void OnSelectedCharacterChanged(CharacterListItem? value)
     {
         OnPropertyChanged(nameof(SelectedCharacterSubtitle));
+        OnPropertyChanged(nameof(SelectedCharacterDetail));
         OnPropertyChanged(nameof(HasSelectedCharacter));
+        OnPropertyChanged(nameof(CanStartChat));
         if (!_isInitializing && value is not null && SelectedUserPersona is not null) _ = LoadCharacterWorkspaceAsync(value.Id);
     }
 
@@ -188,6 +228,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     partial void OnSelectedUserPersonaChanged(UserPersonaListItem? value)
     {
         OnPropertyChanged(nameof(ActiveUserSubtitle));
+        OnPropertyChanged(nameof(CanStartChat));
         if (value is null) return;
         LoadUserPersonaFields(value);
         if (!_isInitializing) _ = ActivateUserPersonaAsync(value.Id);
@@ -195,7 +236,54 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
 
     partial void OnSelectedConversationChanged(ConversationListItem? value)
     {
+        OnPropertyChanged(nameof(HasSelectedConversation));
         if (value is not null) _ = LoadConversationAsync(value.Id);
+    }
+
+    partial void OnSelectedProviderProfileChanged(ProviderProfile? value)
+    {
+        if (value is not null) _ = LoadProviderFieldsAsync(value);
+    }
+
+    partial void OnSelectedProviderLocationChanged(ProviderLocation value)
+    {
+        if (value == ProviderLocation.Remote) ProviderAutoStart = false;
+        OnPropertyChanged(nameof(IsLocalProvider));
+        OnPropertyChanged(nameof(IsRemoteProvider));
+        OnPropertyChanged(nameof(IsCustomRemoteProvider));
+        OnPropertyChanged(nameof(IsHostedRemoteProvider));
+        OnPropertyChanged(nameof(ProviderPrivacyText));
+    }
+
+    partial void OnSelectedRemoteProviderPresetChanged(ProviderPreset? value)
+    {
+        OnPropertyChanged(nameof(HasProviderHelpLink));
+        OnPropertyChanged(nameof(IsCustomRemoteProvider));
+        OnPropertyChanged(nameof(IsHostedRemoteProvider));
+        if (value is null) return;
+        ProviderSetupHelp = value.Description;
+        if (_isLoadingProviderFields) return;
+
+        SelectedProviderLocation = ProviderLocation.Remote;
+        SelectedProviderKind = ProviderKind.OpenAICompatible;
+        ProviderName = value.ProfileName;
+        ProviderBaseUrl = value.BaseUrl;
+        ProviderModel = string.Empty;
+        ProviderEditorTitle = "Nueva conexión online";
+        ProviderEditorDescription = value.Id == "custom"
+            ? "Conectá un servidor propio o independiente mediante una dirección HTTPS."
+            : $"Conectá {value.ProfileName} en tres pasos. Los datos narrativos continúan guardados en tu PC.";
+        DetectedProviderModels.Clear();
+        SelectedDetectedProviderModel = null;
+        OnPropertyChanged(nameof(HasDetectedProviderModels));
+        StatusText = value.Id == "custom"
+            ? "Ingresá la dirección HTTPS de tu servidor y, si corresponde, su clave."
+            : $"Preset «{value.Label}» preparado. Falta tu clave y elegir un modelo.";
+    }
+
+    partial void OnSelectedDetectedProviderModelChanged(string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) ProviderModel = value;
     }
 
     partial void OnSelectedGalleryItemChanged(GalleryItemViewModel? value)
@@ -203,17 +291,44 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         if (value is not null) AlbumItem = value;
     }
 
-    partial void OnAlbumItemChanged(GalleryItemViewModel? value) => OnPropertyChanged(nameof(HasAlbumItem));
+    partial void OnAlbumItemChanged(GalleryItemViewModel? value)
+    {
+        ResetAlbumView();
+        OnPropertyChanged(nameof(HasAlbumItem));
+    }
     partial void OnCharacterPortraitPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasPortrait));
     partial void OnUserPortraitPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasUserPortrait));
     partial void OnChatBackgroundPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasChatBackground));
+    partial void OnAlbumFocusXChanged(double value) => OnPropertyChanged(nameof(AlbumTransformOrigin));
+    partial void OnAlbumFocusYChanged(double value) => OnPropertyChanged(nameof(AlbumTransformOrigin));
     partial void OnPortraitFocusXChanged(double value) => OnPropertyChanged(nameof(PortraitTransformOrigin));
     partial void OnPortraitFocusYChanged(double value) => OnPropertyChanged(nameof(PortraitTransformOrigin));
     partial void OnBackgroundFocusXChanged(double value) => OnPropertyChanged(nameof(BackgroundTransformOrigin));
     partial void OnBackgroundFocusYChanged(double value) => OnPropertyChanged(nameof(BackgroundTransformOrigin));
 
     [RelayCommand]
-    private void Navigate(string section) => ActiveSection = section;
+    private void Navigate(string section)
+    {
+        if (section == "Chat" && !CanStartChat)
+        {
+            ActiveSection = "Inicio";
+            StatusText = "Elegí una identidad y un personaje antes de abrir la conversación.";
+            return;
+        }
+        ActiveSection = section;
+    }
+
+    [RelayCommand]
+    private void OpenSelectedConversation()
+    {
+        if (!CanStartChat || SelectedConversation is null)
+        {
+            StatusText = "Elegí un personaje y una conversación para continuar.";
+            return;
+        }
+        ActiveSection = "Chat";
+        StatusText = $"Conversación cargada con {SelectedCharacter!.Name}.";
+    }
 
     [RelayCommand]
     private void NewUniverse()
@@ -489,26 +604,124 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [RelayCommand]
     private async Task SaveProviderAsync()
     {
+        try
+        {
+            if (!TryBuildProviderDraft(out var provider)) return;
+            await PersistProviderAsync(provider);
+        }
+        catch (Exception ex)
+        {
+            ProviderStatus = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void NewLocalProvider()
+    {
+        _provider = new ProviderProfile
+        {
+            Name = "Motor local",
+            Kind = ProviderKind.LMStudio,
+            Location = ProviderLocation.Local,
+            BaseUrl = "http://127.0.0.1:1234/v1"
+        };
+        LoadProviderFields(_provider, false);
+        ProviderEditorTitle = "Nuevo motor local";
+        ProviderEditorDescription = "Para LM Studio, Ollama o llama.cpp ejecutándose en esta computadora.";
+        StatusText = "Configurá el nuevo motor local y presioná «Guardar y usar».";
+    }
+
+    [RelayCommand]
+    private void NewRemoteProvider()
+    {
+        var preset = ProviderPresetCatalog.Online.First(x => x.Id == "venice");
+        _provider = new ProviderProfile
+        {
+            Name = preset.ProfileName,
+            Kind = ProviderKind.OpenAICompatible,
+            Location = ProviderLocation.Remote,
+            BaseUrl = preset.BaseUrl,
+            AutoStart = false
+        };
+        LoadProviderFields(_provider, false);
+        SelectedRemoteProviderPreset = preset;
+        ProviderEditorTitle = "Nueva conexión online";
+        ProviderEditorDescription = "Elegí un servicio y seguí los pasos. Los campos técnicos quedan en «Configuración avanzada».";
+        StatusText = "Elegí una opción guiada. Ningún servicio se conecta hasta que agregues sus datos y lo compruebes.";
+    }
+
+    [RelayCommand]
+    private async Task DeleteProviderTokenAsync()
+    {
         if (_provider is null) return;
-        _provider.Name = ProviderName.Trim(); _provider.Kind = SelectedProviderKind;
-        _provider.BaseUrl = ProviderBaseUrl.Trim(); _provider.Model = ProviderModel.Trim();
-        _provider.LaunchCommand = ProviderLaunchCommand.Trim(); _provider.AutoStart = ProviderAutoStart;
-        _provider.Temperature = ProviderTemperature; _provider.MaxOutputTokens = ProviderMaxTokens;
-        await _repository.SaveProviderAsync(_provider);
-        StatusText = "Configuración del motor guardada localmente.";
+        await providerSecretStore.DeleteAsync(_provider.Id);
+        ProviderApiToken = string.Empty;
+        HasStoredProviderToken = false;
+        StatusText = "Token protegido eliminado. El perfil del motor sigue guardado.";
     }
 
     [RelayCommand]
     private async Task TestProviderAsync()
     {
-        await SaveProviderAsync();
-        ProviderStatus = "Comprobando…";
+        if (!TryBuildProviderDraft(out var provider)) return;
+        ProviderStatus = "Comprobando sin cambiar el motor activo…";
         try
         {
-            var probe = await application.ProbeProviderAsync(true);
-            ProviderStatus = probe.Message + (probe.Models.Count > 0 ? $" Modelos: {string.Join(", ", probe.Models.Take(3))}" : "");
+            var probe = await ProbeDraftAsync(provider, IsLocalProvider);
+            if (!probe.IsAvailable)
+            {
+                ProviderStatus = $"{probe.Message} Tu motor anterior continúa activo.";
+                return;
+            }
+
+            UpdateDetectedModels(probe.Models);
+            if (string.IsNullOrWhiteSpace(ProviderModel) && probe.Models.Count > 0)
+                SelectedDetectedProviderModel = probe.Models[0];
+            provider.Model = ProviderModel.Trim();
+            await PersistProviderAsync(provider);
+            ProviderStatus = $"{probe.Message} Perfil guardado y activado.";
         }
         catch (Exception ex) { ProviderStatus = ex.Message; }
+    }
+
+    [RelayCommand]
+    private async Task DetectProviderModelsAsync()
+    {
+        if (!TryBuildProviderDraft(out var provider)) return;
+        ProviderStatus = "Buscando modelos sin cambiar el motor activo…";
+        try
+        {
+            var probe = await ProbeDraftAsync(provider, IsLocalProvider);
+            if (!probe.IsAvailable)
+            {
+                ProviderStatus = $"{probe.Message} No se modificó tu motor activo.";
+                return;
+            }
+
+            UpdateDetectedModels(probe.Models);
+            ProviderStatus = probe.Models.Count switch
+            {
+                0 => "El servidor respondió, pero no informó modelos. Podés escribir el identificador manualmente.",
+                1 => "Encontré un modelo y lo seleccioné. Revisalo y presioná «Guardar y comprobar».",
+                _ => $"Encontré {probe.Models.Count} modelos. Elegí uno de la lista."
+            };
+        }
+        catch (Exception ex) { ProviderStatus = ex.Message; }
+    }
+
+    [RelayCommand]
+    private void OpenProviderHelp()
+    {
+        var url = SelectedRemoteProviderPreset?.HelpUrl;
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ProviderStatus = $"No pude abrir la página: {ex.Message}";
+        }
     }
 
     public async Task ImportImagesAsync(IReadOnlyList<string> sourcePaths)
@@ -552,6 +765,13 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         var index = AlbumItem is null ? -1 : Gallery.IndexOf(AlbumItem);
         AlbumItem = Gallery[(index + 1) % Gallery.Count];
         SelectedGalleryItem = AlbumItem;
+    }
+
+    [RelayCommand]
+    private void ResetAlbumView()
+    {
+        AlbumZoom = 1;
+        AlbumFocusX = AlbumFocusY = 0.5;
     }
 
     [RelayCommand]
@@ -668,12 +888,15 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         catch (Exception ex) { StatusText = $"No pude cambiar de identidad: {ex.Message}"; }
     }
 
-    private async Task LoadCharactersAsync(Guid? selectId = null)
+    private async Task LoadCharactersAsync(Guid? selectId = null, bool preserveNoSelection = false)
     {
         var current = selectId ?? SelectedCharacter?.Id;
         Characters.Clear();
-        foreach (var item in await _repository.GetCharactersAsync()) Characters.Add(new CharacterListItem(item.Id, item.Name, item.Age));
-        SelectedCharacter = Characters.FirstOrDefault(x => x.Id == current) ?? Characters.FirstOrDefault();
+        foreach (var item in await _repository.GetCharactersAsync())
+            Characters.Add(new CharacterListItem(item.Id, item.Name, item.Age, item.Revision, item.UpdatedAt));
+        SelectedCharacter = preserveNoSelection && current is null
+            ? null
+            : Characters.FirstOrDefault(x => x.Id == current) ?? Characters.FirstOrDefault();
     }
 
     private async Task LoadUniversesAsync(Guid? selectId = null)
@@ -814,17 +1037,139 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         catch { return null; }
     }
 
-    private async Task LoadProviderAsync()
+    private async Task LoadProvidersAsync(Guid? selectId = null)
     {
-        _provider = await _repository.GetActiveProviderAsync();
-        ProviderName = _provider.Name; SelectedProviderKind = _provider.Kind; ProviderBaseUrl = _provider.BaseUrl;
-        ProviderModel = _provider.Model; ProviderLaunchCommand = _provider.LaunchCommand; ProviderAutoStart = _provider.AutoStart;
-        ProviderTemperature = _provider.Temperature; ProviderMaxTokens = _provider.MaxOutputTokens;
+        var items = await _repository.GetProvidersAsync();
+        var active = items.FirstOrDefault(x => x.IsActive);
+        var selected = selectId ?? active?.Id ?? _provider?.Id;
+        ActiveProviderText = active is null
+            ? "Todavía no hay un motor activo."
+            : $"{active.Name} · {(active.Location == ProviderLocation.Local ? "en este equipo" : "online")}";
+        Providers.Clear();
+        foreach (var item in items) Providers.Add(item);
+        SelectedProviderProfile = Providers.FirstOrDefault(x => x.Id == selected) ?? Providers.FirstOrDefault();
+        if (SelectedProviderProfile is not null) await LoadProviderFieldsAsync(SelectedProviderProfile);
+    }
+
+    private async Task LoadProviderFieldsAsync(ProviderProfile provider)
+    {
+        _provider = provider;
+        LoadProviderFields(provider, await providerSecretStore.ExistsAsync(provider.Id));
+        ProviderEditorTitle = provider.Location == ProviderLocation.Local
+            ? "Motor local"
+            : "Conexión online";
+        ProviderEditorDescription = provider.Location == ProviderLocation.Local
+            ? "Este perfil genera el texto en tu computadora."
+            : "Este perfil usa un servidor externo, pero conserva historias, personajes e imágenes localmente.";
+        StatusText = provider.Location == ProviderLocation.Local
+            ? $"Perfil local «{provider.Name}» seleccionado."
+            : $"Perfil online «{provider.Name}» seleccionado.";
+    }
+
+    private void LoadProviderFields(ProviderProfile provider, bool hasStoredToken)
+    {
+        _isLoadingProviderFields = true;
+        ProviderName = provider.Name; SelectedProviderKind = provider.Kind; ProviderBaseUrl = provider.BaseUrl;
+        ProviderModel = provider.Model; ProviderLaunchCommand = provider.LaunchCommand; ProviderAutoStart = provider.AutoStart;
+        ProviderTemperature = provider.Temperature; ProviderMaxTokens = provider.MaxOutputTokens;
+        SelectedProviderLocation = provider.Location;
+        ProviderApiToken = string.Empty;
+        HasStoredProviderToken = hasStoredToken;
+        DetectedProviderModels.Clear();
+        SelectedDetectedProviderModel = null;
+        SelectedRemoteProviderPreset = provider.Location == ProviderLocation.Remote
+            ? ProviderPresetCatalog.Match(provider.BaseUrl)
+            : null;
+        ProviderSetupHelp = SelectedRemoteProviderPreset?.Description
+            ?? "Tu motor local continúa siendo la opción predeterminada y privada.";
+        _isLoadingProviderFields = false;
+        OnPropertyChanged(nameof(HasDetectedProviderModels));
+        OnPropertyChanged(nameof(HasProviderHelpLink));
+        OnPropertyChanged(nameof(IsCustomRemoteProvider));
+        OnPropertyChanged(nameof(IsHostedRemoteProvider));
+    }
+
+    private bool TryBuildProviderDraft(out ProviderProfile provider)
+    {
+        provider = _provider ?? new ProviderProfile();
+        if (string.IsNullOrWhiteSpace(ProviderName))
+        {
+            ProviderStatus = "Escribí un nombre para reconocer este motor.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(ProviderBaseUrl) || ProviderBaseUrl.Trim() is "https://" or "http://")
+        {
+            ProviderStatus = "Falta la dirección completa del servidor.";
+            return false;
+        }
+
+        provider.Name = ProviderName.Trim();
+        provider.Kind = SelectedProviderKind;
+        provider.Location = SelectedProviderLocation;
+        provider.BaseUrl = ProviderBaseUrl.Trim();
+        provider.Model = ProviderModel.Trim();
+        provider.LaunchCommand = IsLocalProvider ? ProviderLaunchCommand.Trim() : string.Empty;
+        provider.AutoStart = IsLocalProvider && ProviderAutoStart;
+        provider.Temperature = ProviderTemperature;
+        provider.MaxOutputTokens = ProviderMaxTokens;
+        _provider = provider;
+        return true;
+    }
+
+    private async Task<ProviderProbe> ProbeDraftAsync(ProviderProfile provider, bool allowAutoStart)
+    {
+        var typedToken = ProviderApiToken.Trim();
+        var previousToken = await providerSecretStore.GetAsync(provider.Id);
+        var usingTemporaryToken = !string.IsNullOrWhiteSpace(typedToken);
+        if (usingTemporaryToken) await providerSecretStore.SaveAsync(provider.Id, typedToken);
+        try
+        {
+            return await application.ProbeProviderAsync(provider, allowAutoStart);
+        }
+        finally
+        {
+            if (usingTemporaryToken)
+            {
+                if (string.IsNullOrWhiteSpace(previousToken))
+                    await providerSecretStore.DeleteAsync(provider.Id);
+                else
+                    await providerSecretStore.SaveAsync(provider.Id, previousToken);
+            }
+        }
+    }
+
+    private void UpdateDetectedModels(IReadOnlyList<string> models)
+    {
+        var current = ProviderModel.Trim();
+        DetectedProviderModels.Clear();
+        foreach (var model in models.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
+            DetectedProviderModels.Add(model);
+        SelectedDetectedProviderModel = DetectedProviderModels.FirstOrDefault(x =>
+            string.Equals(x, current, StringComparison.OrdinalIgnoreCase))
+            ?? DetectedProviderModels.FirstOrDefault();
+        OnPropertyChanged(nameof(HasDetectedProviderModels));
+    }
+
+    private async Task PersistProviderAsync(ProviderProfile provider)
+    {
+        await _repository.SaveProviderAsync(provider);
+        if (!string.IsNullOrWhiteSpace(ProviderApiToken))
+        {
+            await providerSecretStore.SaveAsync(provider.Id, ProviderApiToken.Trim());
+            ProviderApiToken = string.Empty;
+        }
+        await LoadProvidersAsync(provider.Id);
+        StatusText = IsLocalProvider
+            ? "Motor local guardado y activado."
+            : "Motor online guardado y activado. El token permanece protegido por Windows.";
     }
 }
 
 public sealed record UniverseListItem(Guid Id, string Name);
-public sealed record CharacterListItem(Guid Id, string Name, int Age);
+public sealed record CharacterListItem(Guid Id, string Name, int Age, int Revision, DateTimeOffset UpdatedAt)
+{
+    public string DisplayName => $"{Name} · revisión {Revision}";
+}
 public sealed record UserPersonaListItem(Guid Id, string Name, int Age, string Pronouns, string Appearance,
     string About, string Profession, string Likes, string CommunicationStyle, string PortraitRelativePath, bool IsActive);
 public sealed record ConversationListItem(Guid Id, string Title, SceneMode Mode, DateTimeOffset UpdatedAt, bool IsClosed);
