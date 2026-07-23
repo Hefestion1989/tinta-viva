@@ -128,6 +128,9 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     [ObservableProperty] public partial GalleryItemViewModel? AlbumItem { get; set; }
     [ObservableProperty] public partial Bitmap? CharacterPortraitPreview { get; set; }
     [ObservableProperty] public partial Bitmap? ChatBackgroundPreview { get; set; }
+    [ObservableProperty] public partial double AlbumZoom { get; set; } = 1.0;
+    [ObservableProperty] public partial double AlbumFocusX { get; set; } = 0.5;
+    [ObservableProperty] public partial double AlbumFocusY { get; set; } = 0.5;
     [ObservableProperty] public partial double PortraitZoom { get; set; } = 1.0;
     [ObservableProperty] public partial double PortraitFocusX { get; set; } = 0.5;
     [ObservableProperty] public partial double PortraitFocusY { get; set; } = 0.5;
@@ -151,6 +154,7 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
     public bool HasUserPortrait => UserPortraitPreview is not null;
     public bool HasChatBackground => ChatBackgroundPreview is not null;
     public bool HasAlbumItem => AlbumItem is not null;
+    public RelativePoint AlbumTransformOrigin => new(AlbumFocusX, AlbumFocusY, RelativeUnit.Relative);
     public RelativePoint PortraitTransformOrigin => new(PortraitFocusX, PortraitFocusY, RelativeUnit.Relative);
     public RelativePoint BackgroundTransformOrigin => new(BackgroundFocusX, BackgroundFocusY, RelativeUnit.Relative);
     public string SelectedCharacterSubtitle => SelectedCharacter is null ? "Sin personaje" : $"{SelectedCharacter.Name}, {SelectedCharacter.Age}";
@@ -213,10 +217,16 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         if (value is not null) AlbumItem = value;
     }
 
-    partial void OnAlbumItemChanged(GalleryItemViewModel? value) => OnPropertyChanged(nameof(HasAlbumItem));
+    partial void OnAlbumItemChanged(GalleryItemViewModel? value)
+    {
+        ResetAlbumView();
+        OnPropertyChanged(nameof(HasAlbumItem));
+    }
     partial void OnCharacterPortraitPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasPortrait));
     partial void OnUserPortraitPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasUserPortrait));
     partial void OnChatBackgroundPreviewChanged(Bitmap? value) => OnPropertyChanged(nameof(HasChatBackground));
+    partial void OnAlbumFocusXChanged(double value) => OnPropertyChanged(nameof(AlbumTransformOrigin));
+    partial void OnAlbumFocusYChanged(double value) => OnPropertyChanged(nameof(AlbumTransformOrigin));
     partial void OnPortraitFocusXChanged(double value) => OnPropertyChanged(nameof(PortraitTransformOrigin));
     partial void OnPortraitFocusYChanged(double value) => OnPropertyChanged(nameof(PortraitTransformOrigin));
     partial void OnBackgroundFocusXChanged(double value) => OnPropertyChanged(nameof(BackgroundTransformOrigin));
@@ -583,6 +593,13 @@ public partial class MainViewModel(CompanionApplicationService application, IMed
         var index = AlbumItem is null ? -1 : Gallery.IndexOf(AlbumItem);
         AlbumItem = Gallery[(index + 1) % Gallery.Count];
         SelectedGalleryItem = AlbumItem;
+    }
+
+    [RelayCommand]
+    private void ResetAlbumView()
+    {
+        AlbumZoom = 1;
+        AlbumFocusX = AlbumFocusY = 0.5;
     }
 
     [RelayCommand]

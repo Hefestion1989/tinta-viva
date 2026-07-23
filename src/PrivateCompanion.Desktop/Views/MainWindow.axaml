@@ -434,7 +434,7 @@
                                     <Border Width="250" Background="#141821" BorderBrush="#303545" BorderThickness="1" CornerRadius="12" Margin="6" ClipToBounds="True">
                                         <Grid RowDefinitions="170,Auto">
                                             <Border Background="#0E1117">
-                                                <Image Source="{Binding Preview}" Stretch="UniformToFill" />
+                                                <Image Source="{Binding Preview}" Stretch="Uniform" />
                                             </Border>
                                             <StackPanel Grid.Row="1" Margin="12,10" Spacing="4">
                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
@@ -501,10 +501,15 @@
                     <TextBlock Text="ÁLBUM" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
                     <Border Background="#171A22" CornerRadius="12" ClipToBounds="True">
                         <StackPanel>
-                            <Border Height="135" Background="#0E1117">
+                            <Border Height="220" Background="#0E1117" ClipToBounds="True">
                                 <Grid>
                                     <TextBlock Text="Sin imágenes" Foreground="#747B8D" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    <Image Source="{Binding AlbumItem.Preview}" Stretch="UniformToFill" IsVisible="{Binding HasAlbumItem}" />
+                                    <Image Source="{Binding AlbumItem.Preview}" Stretch="Uniform" IsVisible="{Binding HasAlbumItem}"
+                                           RenderTransformOrigin="{Binding AlbumTransformOrigin}">
+                                        <Image.RenderTransform>
+                                            <ScaleTransform ScaleX="{Binding AlbumZoom}" ScaleY="{Binding AlbumZoom}" />
+                                        </Image.RenderTransform>
+                                    </Image>
                                 </Grid>
                             </Border>
                             <StackPanel Margin="10" Spacing="8">
@@ -514,17 +519,27 @@
                                     <Button Classes="secondary" Content="‹ Anterior" Command="{Binding PreviousAlbumImageCommand}" />
                                     <Button Grid.Column="1" Classes="secondary" Content="Siguiente ›" Command="{Binding NextAlbumImageCommand}" />
                                 </Grid>
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
-                                    <Button Classes="secondary" Content="Rostro" Command="{Binding UseAlbumAsPortraitCommand}" IsEnabled="{Binding HasAlbumItem}" />
-                                    <Button Grid.Column="1" Classes="primary" Content="Fondo" Command="{Binding UseAlbumAsBackgroundCommand}" IsEnabled="{Binding HasAlbumItem}" />
-                                </Grid>
+                                <Expander Header="Ajustar vista del álbum" Background="#11141B" Padding="9" CornerRadius="9" IsEnabled="{Binding HasAlbumItem}">
+                                    <StackPanel Spacing="7" Margin="0,7,0,0">
+                                        <TextBlock Text="Zoom de esta vista" FontSize="10" />
+                                        <Slider Minimum="1" Maximum="4" Value="{Binding AlbumZoom}" />
+                                        <TextBlock Text="Centro horizontal" FontSize="10" />
+                                        <Slider Minimum="0" Maximum="1" Value="{Binding AlbumFocusX}" />
+                                        <TextBlock Text="Centro vertical" FontSize="10" />
+                                        <Slider Minimum="0" Maximum="1" Value="{Binding AlbumFocusY}" />
+                                        <Button Classes="secondary" Content="Mostrar imagen completa" Command="{Binding ResetAlbumViewCommand}" />
+                                        <TextBlock Text="Sólo cambia la vista del álbum; el archivo original queda intacto." TextWrapping="Wrap" FontSize="10" Foreground="#8F95A5" />
+                                    </StackPanel>
+                                </Expander>
+                                <Button Classes="secondary" Content="Usar como retrato" Command="{Binding UseAlbumAsPortraitCommand}" IsEnabled="{Binding HasAlbumItem}" />
+                                <Button Classes="primary" Content="Usar como fondo del chat" Command="{Binding UseAlbumAsBackgroundCommand}" IsEnabled="{Binding HasAlbumItem}" />
                                 <Button Classes="secondary" Content="Quitar fondo del chat" Command="{Binding ClearChatBackgroundCommand}" IsVisible="{Binding HasChatBackground}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <TextBlock Text="ENCUADRE" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
-                    <Expander Header="Ajustar retrato y fondo" Background="#171A22" Padding="10" CornerRadius="10">
+                    <Expander Header="Ajustar retrato y fondo del chat" Background="#171A22" Padding="10" CornerRadius="10">
                         <StackPanel Spacing="9" Margin="0,8,0,0">
                             <TextBlock Text="RETRATO" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
                             <TextBlock Text="Zoom" FontSize="10" /><Slider Minimum="1" Maximum="4" Value="{Binding PortraitZoom}" IsEnabled="{Binding HasPortrait}" />

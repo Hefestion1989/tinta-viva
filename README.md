@@ -20,6 +20,8 @@ La versión 0.6.2 incluye:
 - portada neutra para elegir identidad, personaje y conversación antes de entrar al chat;
 - selección explícita del personaje, con número de revisión y fecha de última edición;
 - separación reforzada de roles para que el modelo no adopte la identidad, acciones o pertenencias de la persona usuaria;
+- álbum con imagen completa por defecto, zoom y centro de vista independientes del retrato y del fondo;
+- acción visible para usar la imagen elegida como retrato o como fondo del chat;
 - personajes editables y perfiles versionados;
 - acceso directo para editar al personaje activo y agregarle imágenes desde la barra lateral;
 - diez rasgos de personalidad configurables;
