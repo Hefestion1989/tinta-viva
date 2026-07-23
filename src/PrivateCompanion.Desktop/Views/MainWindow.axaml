@@ -573,10 +573,68 @@
 
             <ScrollViewer Grid.Row="1" Padding="30,24" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="900" HorizontalAlignment="Center" Spacing="16">
+                    <Border Background="#1B1830" BorderBrush="#7357F6" BorderThickness="1" CornerRadius="16" Padding="20">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="MOTOR TINTA · RECOMENDADO" FontSize="10" FontWeight="SemiBold" Foreground="#B6A8FF" />
+                                    <TextBlock Text="Escribí sin configurar servidores" FontSize="22" FontWeight="SemiBold" />
+                                    <TextBlock Text="Tinta Viva usa un modelo instalado en tu PC y prepara automáticamente la conexión, la memoria y el estilo narrativo."
+                                               TextWrapping="Wrap" Foreground="#B7B3CB" />
+                                </StackPanel>
+
+                                <TextBlock Text="{Binding LocalDeviceSummary}" FontSize="11" Foreground="#8F95A5" />
+
+                                <StackPanel Spacing="6" IsVisible="{Binding HasLocalEngineModels}">
+                                    <TextBlock Text="Modelo local" FontWeight="SemiBold" />
+                                    <ComboBox ItemsSource="{Binding LocalEngineModels}"
+                                              SelectedItem="{Binding SelectedLocalEngineModel}"
+                                              DisplayMemberBinding="{Binding DisplayLabel}"
+                                              MaxDropDownHeight="320" />
+                                    <TextBlock Text="{Binding SelectedLocalModelDetail}" TextWrapping="Wrap"
+                                               FontSize="11" Foreground="#9DA3B3" />
+                                </StackPanel>
+
+                                <Grid ColumnDefinitions="220,*" ColumnSpacing="14" IsVisible="{Binding HasLocalEngineModels}">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Forma de escribir" FontWeight="SemiBold" />
+                                        <ComboBox ItemsSource="{Binding NarrativePresets}"
+                                                  SelectedItem="{Binding SelectedNarrativePreset}"
+                                                  DisplayMemberBinding="{Binding Label}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Bottom">
+                                        <TextBlock Text="{Binding SelectedNarrativePreset.Description}" TextWrapping="Wrap"
+                                                   Foreground="#B7B3CB" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Background="#12101F" CornerRadius="9" Padding="11">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding MotorTintaStatus}" TextWrapping="Wrap" Foreground="#D2CCF7" />
+                                        <TextBlock Text="Al activarlo, LM Studio libera de la memoria otros modelos cargados. No elimina ningún archivo."
+                                                   IsVisible="{Binding HasLocalEngineModels}" TextWrapping="Wrap"
+                                                   FontSize="10" Foreground="#8F8AA8" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Width="205" Spacing="9" VerticalAlignment="Center">
+                                <Button Classes="primary" Content="Activar Motor Tinta"
+                                        Command="{Binding ActivateMotorTintaCommand}"
+                                        IsEnabled="{Binding CanActivateMotorTinta}" />
+                                <Button Classes="secondary" Content="Buscar modelos locales"
+                                        Command="{Binding DiscoverMotorTintaCommand}" />
+                                <TextBlock Text="El contenido y los chats permanecen en este equipo."
+                                           TextWrapping="Wrap" TextAlignment="Center"
+                                           FontSize="10" Foreground="#8F95A5" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
                     <Border Background="#171A22" BorderBrush="#303545" BorderThickness="1" CornerRadius="14" Padding="18">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="22">
                             <StackPanel Spacing="7">
-                                <TextBlock Text="MOTOR ACTIVO" FontSize="10" FontWeight="SemiBold" Foreground="#7CDAA3" />
+                                <TextBlock Text="MOTOR ACTIVO Y OTRAS CONEXIONES" FontSize="10" FontWeight="SemiBold" Foreground="#7CDAA3" />
                                 <TextBlock Text="{Binding ActiveProviderText}" FontSize="18" FontWeight="SemiBold" />
                                 <TextBlock Text="Tus motores guardados" FontSize="11" Foreground="#858C9C" Margin="0,5,0,0" />
                                 <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProviderProfile}"

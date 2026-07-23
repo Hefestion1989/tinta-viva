@@ -6,7 +6,7 @@ namespace PrivateCompanion.Infrastructure.Persistence;
 
 internal static class LocalSchemaMigrator
 {
-    private const int CurrentVersion = 7;
+    private const int CurrentVersion = 8;
 
     public static async Task<bool> PrepareAsync(CompanionDbContext db, CancellationToken cancellationToken)
     {
@@ -89,6 +89,7 @@ internal static class LocalSchemaMigrator
             await AddColumnIfMissingAsync(connection, "CharacterMediaPresentations", "BackgroundFocusY", "REAL NOT NULL DEFAULT 0.5", cancellationToken);
             await AddColumnIfMissingAsync(connection, "UserPersonas", "PortraitRelativePath", "TEXT NOT NULL DEFAULT ''", cancellationToken);
             await AddColumnIfMissingAsync(connection, "Providers", "Location", "INTEGER NOT NULL DEFAULT 0", cancellationToken);
+            await AddColumnIfMissingAsync(connection, "Providers", "NarrativeStyle", "INTEGER NOT NULL DEFAULT 1", cancellationToken);
 
             await ExecuteAsync(connection, """
                 DROP INDEX IF EXISTS "IX_Relationships_CharacterId";

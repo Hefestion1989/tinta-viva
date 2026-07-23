@@ -78,7 +78,15 @@ public sealed class CompanionApplicationService
             ? await _repository.GetUniverseAsync(universeId, cancellationToken)
             : null;
         var provider = await _repository.GetActiveProviderAsync(cancellationToken);
-        var prompt = _promptComposer.Compose(universe, character, userPersona, conversation, relationship, memories, allMessages);
+        var prompt = _promptComposer.Compose(
+            universe,
+            character,
+            userPersona,
+            conversation,
+            relationship,
+            memories,
+            allMessages,
+            provider.NarrativeStyle);
 
         var response = new StringBuilder();
         var assistantMessage = new Message

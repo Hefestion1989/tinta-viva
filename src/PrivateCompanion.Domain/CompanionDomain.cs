@@ -9,6 +9,7 @@ public enum MemoryKind { Episodic, Personal, Emotional, Identity }
 public enum MemoryStatus { Candidate, Confirmed, Rejected, Superseded }
 public enum ProviderKind { LMStudio, Ollama, LlamaCpp, OpenAICompatible }
 public enum ProviderLocation { Local, Remote }
+public enum NarrativeStyle { Conversation, Roleplay, Novel }
 
 public sealed class StoryUniverse
 {
@@ -195,6 +196,7 @@ public sealed class ProviderProfile
     public double TopP { get; set; } = 0.95;
     public int MaxOutputTokens { get; set; } = 512;
     public int ContextBudget { get; set; } = 4096;
+    public NarrativeStyle NarrativeStyle { get; set; } = NarrativeStyle.Roleplay;
     public bool AutoStart { get; set; }
     [MaxLength(2000)] public string LaunchCommand { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
