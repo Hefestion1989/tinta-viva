@@ -32,7 +32,7 @@
                     <Button Classes="nav" Content="⚙  Configuración" Command="{Binding NavigateCommand}" CommandParameter="Configuración" />
                 </StackPanel>
 
-                <Border Grid.Row="2" Background="#171A22" CornerRadius="10" Padding="10" Margin="0,0,0,12">
+                <Border Grid.Row="2" Background="#171A22" CornerRadius="10" Padding="10" Margin="0,0,0,12" IsVisible="{Binding !IsSettings}">
                     <StackPanel Spacing="7">
                         <TextBlock Text="IDENTIDAD ACTIVA" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
                         <Grid ColumnDefinitions="38,*" ColumnSpacing="8">
@@ -49,7 +49,7 @@
                     </StackPanel>
                 </Border>
 
-                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto,Auto">
+                <Grid Grid.Row="3" RowDefinitions="Auto,*,Auto,Auto" IsVisible="{Binding !IsSettings}">
                     <TextBlock Text="PERSONAJES" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" Margin="8,0,0,8" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                              Background="Transparent" BorderThickness="0">
@@ -92,7 +92,7 @@
                     <Button Grid.Row="3" Classes="secondary" Content="+ Nuevo personaje" Command="{Binding NewCharacterCommand}" Margin="0,9,0,0" />
                 </Grid>
 
-                <Border Grid.Row="4" Background="#171A22" CornerRadius="9" Padding="10" Margin="0,14,0,0">
+                <Border Grid.Row="4" Background="#171A22" CornerRadius="9" Padding="10" Margin="0,14,0,0" IsVisible="{Binding !IsSettings}">
                     <StackPanel>
                         <TextBlock Text="PRIVACIDAD" FontSize="10" Foreground="#7CDAA3" FontWeight="SemiBold" />
                         <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="11" Foreground="#ABB0BF" Margin="0,4,0,0" />
@@ -450,83 +450,11 @@
                 </Grid>
             </Grid>
 
-            <!-- Configuración -->
-            <Grid IsVisible="{Binding IsSettings}" RowDefinitions="Auto,*">
-                <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="24,18">
-                    <StackPanel><TextBlock Text="Motores de texto" FontSize="22" FontWeight="SemiBold" />
-                        <TextBlock Text="Usá un modelo local o conectá opcionalmente un servidor online independiente o autohospedado." Foreground="#8F95A5" FontSize="12" /></StackPanel>
-                </Border>
-                <ScrollViewer Grid.Row="1" Padding="28,24">
-                    <StackPanel MaxWidth="760" HorizontalAlignment="Left" Spacing="12">
-                        <Border Background="#171A22" BorderBrush="#303545" BorderThickness="1" CornerRadius="12" Padding="14">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="PERFILES GUARDADOS" FontSize="10" FontWeight="SemiBold" Foreground="#9B8BFF" />
-                                <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProviderProfile}" DisplayMemberBinding="{Binding Name}" />
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="9">
-                                    <Button Classes="secondary" Content="＋ Nuevo local" Command="{Binding NewLocalProviderCommand}" />
-                                    <Button Grid.Column="1" Classes="secondary" Content="＋ Nuevo online" Command="{Binding NewRemoteProviderCommand}" />
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Background="#17251F" BorderBrush="#2F7D57" BorderThickness="1" CornerRadius="10" Padding="12">
-                            <TextBlock Text="{Binding ProviderPrivacyText}" TextWrapping="Wrap" Foreground="#A7E7C2" />
-                        </Border>
-
-                        <Border IsVisible="{Binding IsRemoteProvider}" Background="#171A22" BorderBrush="#51458A" BorderThickness="1" CornerRadius="12" Padding="14">
-                            <StackPanel Spacing="9">
-                                <TextBlock Text="CONFIGURACIÓN GUIADA ONLINE" FontSize="10" FontWeight="SemiBold" Foreground="#AA9BFF" />
-                                <TextBlock Text="Elegí una opción. Tinta Viva completa la dirección técnica; vos conservás el control de la cuenta, la clave y el modelo." TextWrapping="Wrap" FontSize="11" Foreground="#B9BDCA" />
-                                <ComboBox ItemsSource="{Binding RemoteProviderPresets}" SelectedItem="{Binding SelectedRemoteProviderPreset}" DisplayMemberBinding="{Binding Label}" />
-                                <TextBlock Text="{Binding ProviderSetupHelp}" TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
-                                <Button Classes="secondary" Content="Abrir página para obtener la clave" Command="{Binding OpenProviderHelpCommand}" IsVisible="{Binding HasProviderHelpLink}" HorizontalAlignment="Left" />
-                            </StackPanel>
-                        </Border>
-
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                            <StackPanel><TextBlock Text="Ubicación" /><ComboBox ItemsSource="{Binding ProviderLocations}" SelectedItem="{Binding SelectedProviderLocation}" /></StackPanel>
-                            <StackPanel Grid.Column="1"><TextBlock Text="Protocolo / proveedor" /><ComboBox ItemsSource="{Binding ProviderKinds}" SelectedItem="{Binding SelectedProviderKind}" /></StackPanel>
-                        </Grid>
-                        <TextBlock Text="Nombre del perfil" /><TextBox Text="{Binding ProviderName}" />
-                        <TextBlock Text="URL base" /><TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="Local: http://127.0.0.1:1234/v1 · Online: https://servidor.example/v1" />
-                        <TextBlock Text="Modelo / alias" /><TextBox Text="{Binding ProviderModel}" PlaceholderText="Podés escribirlo o usar «Buscar modelos»" />
-                        <StackPanel IsVisible="{Binding IsRemoteProvider}" Spacing="8">
-                            <Button Classes="secondary" Content="Buscar modelos disponibles" Command="{Binding DetectProviderModelsCommand}" HorizontalAlignment="Left" />
-                            <ComboBox ItemsSource="{Binding DetectedProviderModels}" SelectedItem="{Binding SelectedDetectedProviderModel}" IsVisible="{Binding HasDetectedProviderModels}" PlaceholderText="Elegí un modelo" MaxDropDownHeight="280" />
-                        </StackPanel>
-
-                        <Border IsVisible="{Binding IsRemoteProvider}" Background="#211D16" BorderBrush="#6B5932" BorderThickness="1" CornerRadius="10" Padding="13">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="CONEXIÓN ONLINE OPCIONAL" FontSize="10" FontWeight="SemiBold" Foreground="#E1BE70" />
-                                <TextBlock Text="Tinta Viva enviará sólo el contexto necesario para generar cada respuesta. La conversación completa, personajes, memoria e imágenes continúan guardados en SQLite local." TextWrapping="Wrap" FontSize="11" Foreground="#C8B98F" />
-                                <TextBlock Text="Token o clave del servidor (opcional)" />
-                                <TextBox Text="{Binding ProviderApiToken}" PasswordChar="●" PlaceholderText="Dejalo vacío para conservar el token ya guardado o usar un servidor sin clave" />
-                                <TextBlock Text="Hay un token protegido por Windows para este perfil." IsVisible="{Binding HasStoredProviderToken}" FontSize="11" Foreground="#7CDAA3" />
-                                <Button Classes="secondary" Content="Quitar token guardado" Command="{Binding DeleteProviderTokenCommand}" IsVisible="{Binding HasStoredProviderToken}" />
-                                <TextBlock Text="Por seguridad, los perfiles online sólo aceptan HTTPS. «OpenAI-compatible» describe el formato técnico; no obliga a usar OpenAI." TextWrapping="Wrap" FontSize="10" Foreground="#9F967F" />
-                            </StackPanel>
-                        </Border>
-
-                        <StackPanel IsVisible="{Binding IsLocalProvider}" Spacing="8">
-                            <TextBlock Text="Iniciador local opcional (.bat)" /><TextBox Text="{Binding ProviderLaunchCommand}" />
-                            <CheckBox Content="Iniciar el motor automáticamente cuando haga falta" IsChecked="{Binding ProviderAutoStart}" />
-                        </StackPanel>
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                            <StackPanel><TextBlock Text="Temperatura" /><Slider Minimum="0" Maximum="1.5" Value="{Binding ProviderTemperature}" /></StackPanel>
-                            <StackPanel Grid.Column="1"><TextBlock Text="Máximo de tokens" /><NumericUpDown Minimum="64" Maximum="4096" Value="{Binding ProviderMaxTokens}" /></StackPanel>
-                        </Grid>
-                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
-                            <Button Classes="primary" Content="Guardar y usar" Command="{Binding SaveProviderCommand}" />
-                            <Button Classes="secondary" Content="Guardar y comprobar" Command="{Binding TestProviderCommand}" />
-                        </StackPanel>
-                        <Border Background="#171A22" CornerRadius="9" Padding="12" Margin="0,8,0,0"><TextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap" Foreground="#B8BDCA" /></Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
         </Grid>
 
         <!-- Contexto lateral -->
-        <Border Grid.Column="2" Background="#11141B" BorderBrush="#252936" BorderThickness="1,0,0,0" Padding="18,54,18,18" ClipToBounds="True">
+        <Border Grid.Column="2" Background="#11141B" BorderBrush="#252936" BorderThickness="1,0,0,0" Padding="18,54,18,18"
+                ClipToBounds="True" IsVisible="{Binding !IsSettings}">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="15">
                     <TextBlock Text="CONTEXTO ACTUAL" FontSize="11" FontWeight="SemiBold" Foreground="#747B8D" />
@@ -631,6 +559,168 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <!-- Configuración ocupa el área de trabajo completa; el contexto narrativo queda oculto detrás. -->
+        <Grid Grid.Column="1" Grid.ColumnSpan="2" IsVisible="{Binding IsSettings}"
+              Background="#0E1117" RowDefinitions="Auto,*">
+            <Border BorderBrush="#252936" BorderThickness="0,0,0,1" Padding="30,20">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Motor de escritura" FontSize="25" FontWeight="SemiBold" />
+                    <TextBlock Text="Tu modelo local sigue siendo el predeterminado. La conexión online es opcional."
+                               Foreground="#9AA0AF" FontSize="12" />
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" Padding="30,24" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="900" HorizontalAlignment="Center" Spacing="16">
+                    <Border Background="#171A22" BorderBrush="#303545" BorderThickness="1" CornerRadius="14" Padding="18">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="22">
+                            <StackPanel Spacing="7">
+                                <TextBlock Text="MOTOR ACTIVO" FontSize="10" FontWeight="SemiBold" Foreground="#7CDAA3" />
+                                <TextBlock Text="{Binding ActiveProviderText}" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="Tus motores guardados" FontSize="11" Foreground="#858C9C" Margin="0,5,0,0" />
+                                <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProviderProfile}"
+                                          DisplayMemberBinding="{Binding Name}" MinWidth="360" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="9" VerticalAlignment="Center">
+                                <Button Classes="secondary" Content="Agregar otro motor local" Command="{Binding NewLocalProviderCommand}" MinWidth="210" />
+                                <Button Classes="primary" Content="Agregar conexión online" Command="{Binding NewRemoteProviderCommand}" MinWidth="210" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Background="#14221B" BorderBrush="#2F7D57" BorderThickness="1" CornerRadius="11" Padding="13">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <TextBlock Text="●" Foreground="#63D69A" />
+                            <TextBlock Grid.Column="1" Text="{Binding ProviderPrivacyText}" TextWrapping="Wrap" Foreground="#A7E7C2" />
+                        </Grid>
+                    </Border>
+
+                    <Border Background="#171A22" BorderBrush="#3A4050" BorderThickness="1" CornerRadius="14" Padding="20">
+                        <StackPanel Spacing="17">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding ProviderEditorTitle}" FontSize="21" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ProviderEditorDescription}" TextWrapping="Wrap" Foreground="#9299A9" />
+                            </StackPanel>
+
+                            <!-- Flujo online -->
+                            <StackPanel IsVisible="{Binding IsRemoteProvider}" Spacing="14">
+                                <Border Background="#11141B" CornerRadius="11" Padding="15">
+                                    <StackPanel Spacing="9">
+                                        <TextBlock Text="1  ELEGÍ EL SERVICIO" FontSize="11" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                        <ComboBox ItemsSource="{Binding RemoteProviderPresets}" SelectedItem="{Binding SelectedRemoteProviderPreset}"
+                                                  DisplayMemberBinding="{Binding Label}" />
+                                        <TextBlock Text="{Binding ProviderSetupHelp}" TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                        <StackPanel IsVisible="{Binding IsCustomRemoteProvider}" Spacing="6">
+                                            <TextBlock Text="Dirección HTTPS del servidor" />
+                                            <TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="https://servidor.example/v1" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#11141B" CornerRadius="11" Padding="15">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="2  AGREGÁ TU CLAVE" FontSize="11" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                            <TextBlock Text="Los servicios alojados usan una clave; un servidor propio puede no necesitarla. Si la agregás, queda protegida por Windows."
+                                                       TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                            <TextBox Text="{Binding ProviderApiToken}" PasswordChar="●"
+                                                     PlaceholderText="Pegá aquí la clave del servicio" />
+                                            <TextBlock Text="Ya hay una clave protegida para este motor." IsVisible="{Binding HasStoredProviderToken}"
+                                                       FontSize="11" Foreground="#7CDAA3" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Bottom">
+                                            <Button Classes="secondary" Content="Obtener mi clave" Command="{Binding OpenProviderHelpCommand}"
+                                                    IsVisible="{Binding HasProviderHelpLink}" MinWidth="155" />
+                                            <Button Classes="secondary" Content="Quitar clave guardada" Command="{Binding DeleteProviderTokenCommand}"
+                                                    IsVisible="{Binding HasStoredProviderToken}" MinWidth="155" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Background="#11141B" CornerRadius="11" Padding="15">
+                                    <StackPanel Spacing="9">
+                                        <TextBlock Text="3  ELEGÍ EL MODELO" FontSize="11" FontWeight="SemiBold" Foreground="#AA9BFF" />
+                                        <TextBlock Text="Tinta Viva puede consultar la lista y evitarte copiar nombres técnicos."
+                                                   TextWrapping="Wrap" FontSize="11" Foreground="#9298A8" />
+                                        <Button Classes="secondary" Content="Buscar modelos disponibles" Command="{Binding DetectProviderModelsCommand}"
+                                                HorizontalAlignment="Left" />
+                                        <ComboBox ItemsSource="{Binding DetectedProviderModels}" SelectedItem="{Binding SelectedDetectedProviderModel}"
+                                                  IsVisible="{Binding HasDetectedProviderModels}" PlaceholderText="Elegí un modelo"
+                                                  MaxDropDownHeight="300" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Classes="primary" Content="Probar conexión y usar este motor"
+                                        Command="{Binding TestProviderCommand}" HorizontalAlignment="Left" MinWidth="285" />
+                            </StackPanel>
+
+                            <!-- Flujo local -->
+                            <StackPanel IsVisible="{Binding IsLocalProvider}" Spacing="12">
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Nombre para reconocerlo" />
+                                        <TextBox Text="{Binding ProviderName}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="6">
+                                        <TextBlock Text="Modelo cargado" />
+                                        <TextBox Text="{Binding ProviderModel}" PlaceholderText="Identificador informado por el motor" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Dirección local" />
+                                    <TextBox Text="{Binding ProviderBaseUrl}" PlaceholderText="http://127.0.0.1:1234/v1" />
+                                </StackPanel>
+                                <Button Classes="primary" Content="Probar y usar este motor local"
+                                        Command="{Binding TestProviderCommand}" HorizontalAlignment="Left" MinWidth="245" />
+                            </StackPanel>
+
+                            <Expander Header="Configuración avanzada" Background="#11141B" Padding="13" CornerRadius="10">
+                                <StackPanel Spacing="11" Margin="0,10,0,0">
+                                    <Grid IsVisible="{Binding IsRemoteProvider}" ColumnDefinitions="*,*" ColumnSpacing="14">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="Nombre interno del perfil" FontSize="11" />
+                                            <TextBox Text="{Binding ProviderName}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="5">
+                                            <TextBlock Text="Identificador manual del modelo" FontSize="11" />
+                                            <TextBox Text="{Binding ProviderModel}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel IsVisible="{Binding IsHostedRemoteProvider}" Spacing="5">
+                                        <TextBlock Text="URL compatible" FontSize="11" />
+                                        <TextBox Text="{Binding ProviderBaseUrl}" />
+                                    </StackPanel>
+                                    <StackPanel IsVisible="{Binding IsLocalProvider}" Spacing="8">
+                                        <TextBlock Text="Formato del servidor local" FontSize="11" />
+                                        <ComboBox ItemsSource="{Binding ProviderKinds}" SelectedItem="{Binding SelectedProviderKind}" />
+                                        <TextBlock Text="Iniciador local opcional (.bat)" FontSize="11" />
+                                        <TextBox Text="{Binding ProviderLaunchCommand}" />
+                                        <CheckBox Content="Iniciar el motor automáticamente cuando haga falta" IsChecked="{Binding ProviderAutoStart}" />
+                                    </StackPanel>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="Creatividad de las respuestas" FontSize="11" />
+                                            <Slider Minimum="0" Maximum="1.5" Value="{Binding ProviderTemperature}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="5">
+                                            <TextBlock Text="Extensión máxima" FontSize="11" />
+                                            <NumericUpDown Minimum="64" Maximum="4096" Value="{Binding ProviderMaxTokens}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Classes="secondary" Content="Guardar sin comprobar" Command="{Binding SaveProviderCommand}"
+                                            HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </Expander>
+
+                            <Border Background="#0E1117" BorderBrush="#2D3240" BorderThickness="1" CornerRadius="9" Padding="12">
+                                <TextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap" Foreground="#B8BDCA" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
 
         <Button Grid.ColumnSpan="3"
                 Width="36"

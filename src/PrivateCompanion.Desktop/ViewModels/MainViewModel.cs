@@ -137,6 +137,9 @@ public partial class MainViewModel(
     [ObservableProperty] public partial ProviderPreset? SelectedRemoteProviderPreset { get; set; }
     [ObservableProperty] public partial string? SelectedDetectedProviderModel { get; set; }
     [ObservableProperty] public partial string ProviderSetupHelp { get; set; } = "Elegí una opción para completar la conexión sin memorizar direcciones técnicas.";
+    [ObservableProperty] public partial string ProviderEditorTitle { get; set; } = "Motor local";
+    [ObservableProperty] public partial string ProviderEditorDescription { get; set; } = "Tu motor actual funciona en este equipo.";
+    [ObservableProperty] public partial string ActiveProviderText { get; set; } = "Cargando motor activo…";
     [ObservableProperty] public partial double ProviderTemperature { get; set; } = 0.85;
     [ObservableProperty] public partial int ProviderMaxTokens { get; set; } = 512;
 
@@ -166,6 +169,8 @@ public partial class MainViewModel(
     public bool IsRemoteProvider => SelectedProviderLocation == ProviderLocation.Remote;
     public bool HasDetectedProviderModels => DetectedProviderModels.Count > 0;
     public bool HasProviderHelpLink => !string.IsNullOrWhiteSpace(SelectedRemoteProviderPreset?.HelpUrl);
+    public bool IsCustomRemoteProvider => IsRemoteProvider && SelectedRemoteProviderPreset?.Id == "custom";
+    public bool IsHostedRemoteProvider => IsRemoteProvider && !IsCustomRemoteProvider;
     public string ProviderPrivacyText => IsLocalProvider
         ? "Modo local: prompts, respuestas y datos permanecen en este equipo."
         : "Modo online: los chats se guardan localmente, pero el contexto necesario para responder se envía al servidor remoto.";
@@ -245,12 +250,16 @@ public partial class MainViewModel(
         if (value == ProviderLocation.Remote) ProviderAutoStart = false;
         OnPropertyChanged(nameof(IsLocalProvider));
         OnPropertyChanged(nameof(IsRemoteProvider));
+        OnPropertyChanged(nameof(IsCustomRemoteProvider));
+        OnPropertyChanged(nameof(IsHostedRemoteProvider));
         OnPropertyChanged(nameof(ProviderPrivacyText));
     }
 
     partial void OnSelectedRemoteProviderPresetChanged(ProviderPreset? value)
     {
         OnPropertyChanged(nameof(HasProviderHelpLink));
+        OnPropertyChanged(nameof(IsCustomRemoteProvider));
+        OnPropertyChanged(nameof(IsHostedRemoteProvider));
         if (value is null) return;
         ProviderSetupHelp = value.Description;
         if (_isLoadingProviderFields) return;
@@ -260,6 +269,10 @@ public partial class MainViewModel(
         ProviderName = value.ProfileName;
         ProviderBaseUrl = value.BaseUrl;
         ProviderModel = string.Empty;
+        ProviderEditorTitle = "Nueva conexión online";
+        ProviderEditorDescription = value.Id == "custom"
+            ? "Conectá un servidor propio o independiente mediante una dirección HTTPS."
+            : $"Conectá {value.ProfileName} en tres pasos. Los datos narrativos continúan guardados en tu PC.";
         DetectedProviderModels.Clear();
         SelectedDetectedProviderModel = null;
         OnPropertyChanged(nameof(HasDetectedProviderModels));
@@ -612,25 +625,28 @@ public partial class MainViewModel(
             Location = ProviderLocation.Local,
             BaseUrl = "http://127.0.0.1:1234/v1"
         };
-        SelectedProviderProfile = null;
         LoadProviderFields(_provider, false);
+        ProviderEditorTitle = "Nuevo motor local";
+        ProviderEditorDescription = "Para LM Studio, Ollama o llama.cpp ejecutándose en esta computadora.";
         StatusText = "Configurá el nuevo motor local y presioná «Guardar y usar».";
     }
 
     [RelayCommand]
     private void NewRemoteProvider()
     {
+        var preset = ProviderPresetCatalog.Online.First(x => x.Id == "venice");
         _provider = new ProviderProfile
         {
-            Name = "Motor online",
+            Name = preset.ProfileName,
             Kind = ProviderKind.OpenAICompatible,
             Location = ProviderLocation.Remote,
-            BaseUrl = "https://",
+            BaseUrl = preset.BaseUrl,
             AutoStart = false
         };
-        SelectedProviderProfile = null;
         LoadProviderFields(_provider, false);
-        SelectedRemoteProviderPreset = ProviderPresetCatalog.Online[0];
+        SelectedRemoteProviderPreset = preset;
+        ProviderEditorTitle = "Nueva conexión online";
+        ProviderEditorDescription = "Elegí un servicio y seguí los pasos. Los campos técnicos quedan en «Configuración avanzada».";
         StatusText = "Elegí una opción guiada. Ningún servicio se conecta hasta que agregues sus datos y lo compruebes.";
     }
 
@@ -1024,7 +1040,11 @@ public partial class MainViewModel(
     private async Task LoadProvidersAsync(Guid? selectId = null)
     {
         var items = await _repository.GetProvidersAsync();
-        var selected = selectId ?? items.FirstOrDefault(x => x.IsActive)?.Id ?? _provider?.Id;
+        var active = items.FirstOrDefault(x => x.IsActive);
+        var selected = selectId ?? active?.Id ?? _provider?.Id;
+        ActiveProviderText = active is null
+            ? "Todavía no hay un motor activo."
+            : $"{active.Name} · {(active.Location == ProviderLocation.Local ? "en este equipo" : "online")}";
         Providers.Clear();
         foreach (var item in items) Providers.Add(item);
         SelectedProviderProfile = Providers.FirstOrDefault(x => x.Id == selected) ?? Providers.FirstOrDefault();
@@ -1035,6 +1055,12 @@ public partial class MainViewModel(
     {
         _provider = provider;
         LoadProviderFields(provider, await providerSecretStore.ExistsAsync(provider.Id));
+        ProviderEditorTitle = provider.Location == ProviderLocation.Local
+            ? "Motor local"
+            : "Conexión online";
+        ProviderEditorDescription = provider.Location == ProviderLocation.Local
+            ? "Este perfil genera el texto en tu computadora."
+            : "Este perfil usa un servidor externo, pero conserva historias, personajes e imágenes localmente.";
         StatusText = provider.Location == ProviderLocation.Local
             ? $"Perfil local «{provider.Name}» seleccionado."
             : $"Perfil online «{provider.Name}» seleccionado.";
@@ -1059,6 +1085,8 @@ public partial class MainViewModel(
         _isLoadingProviderFields = false;
         OnPropertyChanged(nameof(HasDetectedProviderModels));
         OnPropertyChanged(nameof(HasProviderHelpLink));
+        OnPropertyChanged(nameof(IsCustomRemoteProvider));
+        OnPropertyChanged(nameof(IsHostedRemoteProvider));
     }
 
     private bool TryBuildProviderDraft(out ProviderProfile provider)

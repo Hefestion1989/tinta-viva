@@ -7,7 +7,7 @@
     <ApplicationIcon>Assets\private-companion.ico</ApplicationIcon>
     <AssemblyName>PrivateCompanion</AssemblyName>
     <Product>Tinta Viva</Product>
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <Authors>Private local project</Authors>
   </PropertyGroup>
 

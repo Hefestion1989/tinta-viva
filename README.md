@@ -14,11 +14,14 @@ No hay una nube propia, cuentas ni telemetría. El modo local sólo acepta conex
 
 ## Estado actual
 
-La versión 0.7.1 incluye:
+La versión 0.7.2 incluye:
 
 - interfaz Avalonia/.NET 10 para Windows;
 - perfiles de motor separados para ejecución local u online;
 - configuración online guiada con presets para servidor propio, Venice AI y OpenRouter;
+- asistente online de tres pasos con los campos técnicos relegados a una sección avanzada;
+- pantalla de motores sin el panel narrativo lateral, para mantener el foco en la conexión;
+- motor activo siempre visible mientras se prepara un perfil nuevo;
 - detección y selección de modelos informados por el servidor, sin copiar identificadores a mano;
 - comprobación segura de un perfil nuevo antes de activarlo, para no desplazar el motor anterior si la conexión falla;
 - conexión remota genérica mediante HTTPS y protocolo OpenAI-compatible, sin dependencia obligatoria de OpenAI ni de otro proveedor comercial;
