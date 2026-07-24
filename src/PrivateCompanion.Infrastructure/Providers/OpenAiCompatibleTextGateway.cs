@@ -11,12 +11,17 @@ namespace PrivateCompanion.Infrastructure.Providers;
 public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDisposable
 {
     private readonly IProviderSecretStore _secretStore;
+    private readonly ILocalEngineManager? _localEngineManager;
     private readonly HttpClient _client;
     private Process? _startedProcess;
 
-    public OpenAiCompatibleTextGateway(IProviderSecretStore secretStore, HttpMessageHandler? handler = null)
+    public OpenAiCompatibleTextGateway(
+        IProviderSecretStore secretStore,
+        HttpMessageHandler? handler = null,
+        ILocalEngineManager? localEngineManager = null)
     {
         _secretStore = secretStore;
+        _localEngineManager = localEngineManager;
         _client = handler is null
             ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
             : new HttpClient(handler);
@@ -27,6 +32,7 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
         TextGenerationRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        await EnsureManagedLmStudioReadyAsync(request.Provider, cancellationToken);
         var probe = await ProbeAsync(request.Provider, request.Provider.AutoStart, cancellationToken);
         if (!probe.IsAvailable) throw new InvalidOperationException(probe.Message);
         var selectedModel = string.IsNullOrWhiteSpace(request.Provider.Model)
@@ -35,21 +41,17 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
         if (string.IsNullOrWhiteSpace(selectedModel))
             throw new InvalidOperationException("El motor está conectado, pero no informó ningún modelo. Cargá uno y volvé a intentarlo.");
 
-        var endpoint = BuildEndpoint(request.Provider.BaseUrl, "chat/completions");
-        var body = new
+        // Algunas combinaciones de LM Studio y modelos GGUF se cierran al usar SSE
+        // aunque completan correctamente la misma solicitud sin streaming.
+        if (request.Provider.Kind == ProviderKind.LMStudio &&
+            request.Provider.Location == ProviderLocation.Local)
         {
-            model = selectedModel,
-            messages = request.Messages.Select(x => new { role = x.Role, content = x.Content }),
-            temperature = request.Temperature ?? request.Provider.Temperature,
-            top_p = request.Provider.TopP,
-            max_tokens = request.MaxOutputTokens ?? request.Provider.MaxOutputTokens,
-            stream = true
-        };
+            yield return await CompleteAsync(request, selectedModel, cancellationToken);
+            yield break;
+        }
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
-        {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
-        };
+        var endpoint = BuildEndpoint(request.Provider.BaseUrl, "chat/completions");
+        using var message = CreateChatRequest(request, selectedModel, endpoint, true);
         message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
         await AddAuthorizationAsync(message, request.Provider, cancellationToken);
         using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -77,9 +79,131 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
             if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) continue;
             var payload = line[5..].Trim();
             if (payload == "[DONE]") yield break;
+            if (TryExtractError(payload, out var error))
+                throw new InvalidOperationException($"El motor interrumpió la generación: {error}");
             var content = ExtractDelta(payload);
             if (!string.IsNullOrEmpty(content)) yield return content;
         }
+    }
+
+    private async Task EnsureManagedLmStudioReadyAsync(
+        ProviderProfile provider,
+        CancellationToken cancellationToken)
+    {
+        if (_localEngineManager is null || !IsManagedMotorTinta(provider))
+            return;
+
+        var probe = await TryProbeAsync(provider, cancellationToken);
+        if (probe.IsAvailable &&
+            probe.Models.Any(x => string.Equals(x, provider.Model, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        var inventory = await _localEngineManager.InspectAsync(cancellationToken);
+        if (!inventory.IsAvailable)
+            throw new InvalidOperationException(inventory.Message);
+
+        var configuredName = ManagedModelName(provider);
+        var model = FindConfiguredModel(inventory, configuredName);
+        if (model is null)
+            throw new InvalidOperationException(
+                $"No encontré el modelo local configurado «{configuredName}». Abrí Configuración y elegí otro modelo.");
+
+        var activation = await _localEngineManager.ActivateAsync(
+            model.ModelKey,
+            provider.ContextBudget,
+            cancellationToken);
+        if (!activation.IsSuccess)
+            throw new InvalidOperationException(activation.Message);
+
+        var finalProbe = await TryProbeAsync(provider, cancellationToken);
+        if (!finalProbe.IsAvailable ||
+            !finalProbe.Models.Any(x => string.Equals(x, provider.Model, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException(
+                $"Motor Tinta intentó cargar «{configuredName}», pero el modelo no quedó disponible.");
+    }
+
+    private async Task<string> CompleteAsync(
+        TextGenerationRequest request,
+        string selectedModel,
+        CancellationToken cancellationToken)
+    {
+        var endpoint = BuildEndpoint(request.Provider.BaseUrl, "chat/completions");
+        var result = await SendCompleteRequestAsync(request, selectedModel, endpoint, cancellationToken);
+        if (!result.IsSuccessStatusCode &&
+            IsManagedMotorTinta(request.Provider) &&
+            IsVulkanDeviceLost(result.Content))
+        {
+            await RecoverManagedLmStudioOnCpuAsync(request.Provider, cancellationToken);
+            result = await SendCompleteRequestAsync(request, selectedModel, endpoint, cancellationToken);
+        }
+        if (!result.IsSuccessStatusCode)
+            throw new InvalidOperationException($"El motor devolvió {result.StatusCode}: {Trim(result.Content, 500)}");
+        if (TryExtractError(result.Content, out var error))
+            throw new InvalidOperationException($"El motor no pudo completar la respuesta: {error}");
+
+        var content = ExtractFullContent(result.Content);
+        if (string.IsNullOrWhiteSpace(content))
+            throw new InvalidOperationException("El motor terminó sin devolver texto.");
+        return content;
+    }
+
+    private async Task<CompletionResult> SendCompleteRequestAsync(
+        TextGenerationRequest request,
+        string selectedModel,
+        Uri endpoint,
+        CancellationToken cancellationToken)
+    {
+        using var message = CreateChatRequest(request, selectedModel, endpoint, false);
+        message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        await AddAuthorizationAsync(message, request.Provider, cancellationToken);
+        using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseContentRead, cancellationToken);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return new CompletionResult(response.IsSuccessStatusCode, (int)response.StatusCode, json);
+    }
+
+    private async Task RecoverManagedLmStudioOnCpuAsync(
+        ProviderProfile provider,
+        CancellationToken cancellationToken)
+    {
+        if (_localEngineManager is null) return;
+        var inventory = await _localEngineManager.InspectAsync(cancellationToken);
+        if (!inventory.IsAvailable)
+            throw new InvalidOperationException(inventory.Message);
+
+        var configuredName = ManagedModelName(provider);
+        var model = FindConfiguredModel(inventory, configuredName);
+        if (model is null)
+            throw new InvalidOperationException(
+                $"La GPU dejó de responder y no pude encontrar «{configuredName}» para recuperarlo por CPU.");
+
+        var recovery = await _localEngineManager.ActivateCpuOnlyAsync(
+            model.ModelKey,
+            provider.ContextBudget,
+            cancellationToken);
+        if (!recovery.IsSuccess)
+            throw new InvalidOperationException(
+                $"La GPU dejó de responder y la recuperación por CPU falló: {recovery.Message}");
+    }
+
+    private static HttpRequestMessage CreateChatRequest(
+        TextGenerationRequest request,
+        string selectedModel,
+        Uri endpoint,
+        bool stream)
+    {
+        var body = new
+        {
+            model = selectedModel,
+            messages = request.Messages.Select(x => new { role = x.Role, content = x.Content }),
+            temperature = request.Temperature ?? request.Provider.Temperature,
+            top_p = request.Provider.TopP,
+            max_tokens = request.MaxOutputTokens ?? request.Provider.MaxOutputTokens,
+            stream
+        };
+        return new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+        };
     }
 
     public async Task<ProviderProbe> ProbeAsync(
@@ -200,7 +324,7 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
                 return content.ValueKind == JsonValueKind.String ? content.GetString() : null;
             if (choice.TryGetProperty("text", out var text)) return text.GetString();
         }
-        catch (JsonException) { }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException) { }
         return null;
     }
 
@@ -212,6 +336,53 @@ public sealed class OpenAiCompatibleTextGateway : ITextGenerationGateway, IDispo
         if (choice.TryGetProperty("text", out var text)) return text.GetString();
         return null;
     }
+
+    private static bool TryExtractError(string json, out string message)
+    {
+        message = string.Empty;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("error", out var error)) return false;
+            if (error.ValueKind == JsonValueKind.Object &&
+                error.TryGetProperty("message", out var nested) &&
+                nested.ValueKind == JsonValueKind.String)
+                message = nested.GetString() ?? string.Empty;
+            else if (error.ValueKind == JsonValueKind.String)
+                message = error.GetString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(message) &&
+                document.RootElement.TryGetProperty("message", out var rootMessage) &&
+                rootMessage.ValueKind == JsonValueKind.String)
+                message = rootMessage.GetString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(message)) message = "error no especificado";
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsManagedMotorTinta(ProviderProfile provider) =>
+        provider.Kind == ProviderKind.LMStudio &&
+        provider.Location == ProviderLocation.Local &&
+        provider.Name.StartsWith("Motor Tinta ·", StringComparison.OrdinalIgnoreCase);
+
+    private static string ManagedModelName(ProviderProfile provider) =>
+        provider.Name["Motor Tinta ·".Length..].Trim();
+
+    private static LocalEngineModel? FindConfiguredModel(
+        LocalEngineInventory inventory,
+        string configuredName) =>
+        inventory.Models.FirstOrDefault(x =>
+            string.Equals(x.DisplayName, configuredName, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsVulkanDeviceLost(string content) =>
+        content.Contains("ErrorDeviceLost", StringComparison.OrdinalIgnoreCase) ||
+        content.Contains("vk::Queue::submit", StringComparison.OrdinalIgnoreCase) ||
+        content.Contains("model has crashed", StringComparison.OrdinalIgnoreCase);
+
+    private sealed record CompletionResult(bool IsSuccessStatusCode, int StatusCode, string Content);
 
     private static string Trim(string value, int max) => value.Length <= max ? value : value[..max];
     public void Dispose()

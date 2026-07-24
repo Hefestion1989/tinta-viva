@@ -14,11 +14,15 @@ No hay una nube propia, cuentas ni telemetría. El modo local sólo acepta conex
 
 ## Estado actual
 
-La versión 0.8.0 incluye:
+La versión 0.8.2 incluye:
 
-[Ver las notas completas de Tinta Viva 0.8.0](docs/releases/0.8.0.md).
+[Ver las notas completas de Tinta Viva 0.8.2](docs/releases/0.8.2.md).
 
 - interfaz Avalonia/.NET 10 para Windows;
+- recuperación automática de Motor Tinta después de reiniciar la aplicación o de una caída del modelo;
+- generación estable sin streaming para modelos LM Studio que se cierran al usar SSE;
+- recuperación adaptativa por CPU cuando el backend Vulkan informa que la GPU dejó de responder;
+- errores del motor visibles y mensajes fallidos vacíos ocultos en la conversación;
 - **Motor Tinta** como recorrido local recomendado: detecta LM Studio y los modelos ya instalados sin pedir URLs ni alias;
 - activación guiada de un único modelo local para evitar competencia silenciosa por la RAM;
 - recomendación automática de un modelo rápido entre los disponibles;

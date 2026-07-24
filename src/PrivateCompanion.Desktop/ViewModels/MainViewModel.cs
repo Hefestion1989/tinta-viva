@@ -596,7 +596,7 @@ public partial class MainViewModel(
         {
             assistant.Content = $"No pude generar la respuesta. {ex.Message}";
             ProviderStatus = "Motor local desconectado";
-            StatusText = "Revisá Configuración si el motor no pudo iniciarse.";
+            StatusText = $"No pude generar la respuesta: {ex.Message}";
         }
         finally
         {
@@ -1108,7 +1108,10 @@ public partial class MainViewModel(
         SceneParticipants = conversation.SceneParticipants; SceneIntent = conversation.SceneIntent;
         SceneKnownFacts = conversation.SceneKnownFacts; SceneBoundaries = conversation.SceneBoundaries;
         Messages.Clear();
-        foreach (var message in await _repository.GetMessagesAsync(conversationId, 120))
+        foreach (var message in (await _repository.GetMessagesAsync(conversationId, 120))
+                     .Where(message =>
+                         message.Status == MessageStatus.Completed ||
+                         !string.IsNullOrWhiteSpace(message.Content)))
             Messages.Add(new ChatMessageViewModel(message.Role == MessageRole.User ? SelectedUserPersona?.Name ?? "Vos" : CharacterName, message.Content, message.Role == MessageRole.User));
     }
 

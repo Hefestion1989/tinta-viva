@@ -51,6 +51,10 @@ public interface ILocalEngineManager
         string modelKey,
         int contextLength,
         CancellationToken cancellationToken = default);
+    Task<LocalEngineActivationResult> ActivateCpuOnlyAsync(
+        string modelKey,
+        int contextLength,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ICompanionRepository
