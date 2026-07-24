@@ -74,7 +74,20 @@ public sealed class LmStudioLocalEngineManager : ILocalEngineManager
     public async Task<LocalEngineActivationResult> ActivateAsync(
         string modelKey,
         int contextLength,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await ActivateInternalAsync(modelKey, contextLength, false, cancellationToken);
+
+    public async Task<LocalEngineActivationResult> ActivateCpuOnlyAsync(
+        string modelKey,
+        int contextLength,
+        CancellationToken cancellationToken = default) =>
+        await ActivateInternalAsync(modelKey, contextLength, true, cancellationToken);
+
+    private async Task<LocalEngineActivationResult> ActivateInternalAsync(
+        string modelKey,
+        int contextLength,
+        bool cpuOnly,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_cliPath))
             return new LocalEngineActivationResult(false, "No encontré LM Studio en este equipo.");
@@ -94,26 +107,32 @@ public sealed class LmStudioLocalEngineManager : ILocalEngineManager
         await RunAsync(["unload", "--all"], TimeSpan.FromSeconds(35), cancellationToken);
 
         var context = Math.Clamp(contextLength, 4096, 32768);
-        var load = await RunAsync(
-            [
-                "load",
-                modelKey,
-                "--context-length",
-                context.ToString(),
-                "--parallel",
-                "1",
-                "--identifier",
-                "tinta-viva",
-                "--yes"
-            ],
-            TimeSpan.FromMinutes(3),
-            cancellationToken);
+        var loadArguments = new List<string>
+        {
+            "load",
+            modelKey,
+            "--context-length",
+            context.ToString(),
+            "--parallel",
+            "1",
+            "--identifier",
+            "tinta-viva"
+        };
+        if (cpuOnly)
+        {
+            loadArguments.Add("--gpu");
+            loadArguments.Add("off");
+        }
+        loadArguments.Add("--yes");
+        var load = await RunAsync(loadArguments, TimeSpan.FromMinutes(3), cancellationToken);
         if (load.ExitCode != 0)
             return new LocalEngineActivationResult(false, $"No pude cargar el modelo: {ShortError(load)}");
 
         return new LocalEngineActivationResult(
             true,
-            $"Motor Tinta quedó activo con {context:N0} tokens de contexto. El modelo se ejecuta en este equipo.");
+            cpuOnly
+                ? $"Motor Tinta quedó activo por CPU con {context:N0} tokens de contexto para evitar una caída de la GPU."
+                : $"Motor Tinta quedó activo con {context:N0} tokens de contexto. El modelo se ejecuta en este equipo.");
     }
 
     private async Task<ProcessResult> RunAsync(
