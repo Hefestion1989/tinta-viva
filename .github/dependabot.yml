@@ -4,3 +4,24 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      nuget-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: coverlet.collector
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: Microsoft.NET.Test.Sdk
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: xunit
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: xunit.runner.visualstudio
+        update-types:
+          - "version-update:semver-major"
